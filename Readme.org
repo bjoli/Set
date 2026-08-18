@@ -1,0 +1,270 @@
+* Map, an immutable and unsafe champ that is also fast
+
+Good afternoon. This is a really old project of mine that I never really got running in the first place. I was simple too dumb to get it to work. I had spent lots of time testing different things out, just to get a memory layout that was fast, but when it came down to me stitching it together I failed. Badly even.
+
+As every hobby programmer, I dream about making my own language. It manifests in me looking around and seeing different things I like, and thinking "how sad it doesn't use S-expression syntax". Then one day I decided to try, and started not by actually designing a language, but by trying to get some old data structures to work. Being a lazy sod, I got gemini to help me debug the issue I was having. It wasn't actually one issue, but three, and fixing either one actually made the other two worse, which was why I never got anywhere at the start. I also didn't know what a stepping debugger was. Now that I get one in emacs thanks to LSP I have actually started using it. 
+  
+However, when that issue was fixed, and one stupid inlining mishap was fixed it turns out this is actually very fast. So, I added an enumerator and a transient interface (holy code-duplication-batman!). AI helped me a bit along the way. Not that much, but still a bit. 
+
+
+** How does it look?
+
+Below is some general usage. Remember, this is an immutable data structure that does path copying. This means an update or addition usually only incurs a small copy penalty. It is of course often slower than a mutable dictionary, but still pretty fast. I can confidently say that operation for operation this implementation is faster than doing the same thing with clojure's maps, and people are using those for serious business™.
+
+
+#+begin_src csharp
+using Map;
+
+// --- 1. Basic Initialization & Persistence ---
+var map1 = Map<string, int>.Empty.Add("Alice", 25).Add("Bob", 30);
+var map2 = map1.Remove("Alice"); // Returns a new map without Alice
+
+Console.WriteLine($"Map1 has Alice: {map1.ContainsKey("Alice")}"); // True
+Console.WriteLine($"Map2 has Alice: {map2.ContainsKey("Alice")}"); // False
+
+// --- 2. Retrieval & Properties ---
+int bobAge = map1["Bob"]; // Throws KeyNotFoundException if missing
+bool hasCharlie = map1.TryGetValue("Charlie", out int charlieAge);
+Console.WriteLine($"Count: {map1.Count}, IsEmpty: {map1.IsEmpty}");
+
+// --- 3. Enumeration ---
+// Uses the struct-based MapEnumerator for zero-allocation iteration
+foreach (var kvp in map1)
+{
+        Console.WriteLine($"{kvp.Key}: {kvp.Value}");
+}
+
+// --- 4. Raw Transient Interface ---
+// Avoids allocating intermediate tree nodes for sequential updates
+TransientMap<string, int> transientMap = map1.ToTransient();
+transientMap.Add("Charlie", 35);
+transientMap.Add("Dave", 40);
+transientMap.Remove("Bob");
+
+if (transientMap.TryGetValue("Charlie", out int val))
+{
+        // Retrieval works directly on the transient structure
+}
+
+// Commits changes and disowns the transient nodes
+Map<string, int> map3 = transientMap.ToImmutable();
+
+// --- 5. Bulk Construction via MapBuilder ---
+// Uses highly optimized radix sort for fast initialization
+var builder = new MapBuilder<string, int>(initialCapacity: 100);
+for (int i = 0; i < 100; i++)
+{
+        builder.Add($"User{i}", i);
+}
+var map4 = builder.ToImmutable();
+
+// --- 6. Functional Utilities & Searching ---
+// MapCar: Transform keys and values into a new Map
+var transformed = map1.MapCar((k, v) => (k.ToUpper(), v * 2));
+
+// Filter: Retain elements matching a predicate
+var filtered = transformed.Filter((k, v) => v > 50);
+
+// FoldValues: Aggregate values sequentially
+int sumOfAges = map1.FoldValues(0, (acc, v) => acc + v);
+
+// Exists & FindKey
+bool exists = map1.Exists((k, v) => v > 20);
+string key = map1.FindKey(k => k.StartsWith("A"));
+
+// Iter: Execute a delegate. Returning false aborts iteration early.
+map1.Iter((k, v) => 
+{
+        if (k == "Bob") return false; // Abort early
+            return true; 
+});
+
+// ForEach: Unconditional execution over all elements
+map1.ForEach((k, v) => Console.WriteLine(k));
+
+// --- 7. Merging Maps ---
+// Resolves conflicts by explicitly preferring the right side's value
+var map5 = map3.Merge(map1, conflictResolver: (k, left, right) => right);
+
+#+end_src
+
+** Documentation
+
+I wouldn't call it good by any stretch of the imagination. I don't know how docfx works: https://bjoli.github.io/api/Map.Map-2.html
+
+** How fast?
+ I would say fast. Not as much as I expected from my previous runs, but it is still very competitive. Here are some benchmarks for six different workloads. These are all <int, int> benchmarks, but things don't change much for strings when everyone uses the same kind of hashing algorithm. Using other keys just adds noise, since nobody uses a novel string key storage anyway. 
+
+ The transient map is a map that allows for mutating updates on nodes that has no other owner. This allows for somewhat faster building, but very fast bulk updates. The builder is a specialized builder that adds all keys to a list, radix sorts them by the hash and builds the tree directly. It is very fast.
+
+ Over all, when using all-persistent workloads (no transients or builders) it is around 2-10x faster than ImmDict (I didn't benchmark the ImmutableDict builder, though), while being in the same ballpark with regards to memory usage. If you can use transients and builders for bulk updates, it stays within 3x of the regular mutable Dict. In some workloads it will actually be faster, which was surprising to me 
+
+*** Building
+ Builds a map of N key-value pairs.
+
+| Method                 | N      | Mean             | StdDev         | Median           | Gen0       | Gen1      | Gen2     | Allocated   |
+| Build_Map              | 100    |      3,362.84 ns |      42.560 ns |      3,359.62 ns |    2.0142 |    0.0076 |        - |     33728 B |
+| Build_TransientMap     | 100    |      2,329.61 ns |      41.018 ns |      2,321.31 ns |    1.1406 |    0.0038 |        - |     19112 B |
+| Build_MapBuilder       | 100    |      1,953.42 ns |      10.720 ns |      1,948.06 ns |    0.3777 |         - |        - |      6360 B |
+| Build_ImmDict          | 100    |      8,957.87 ns |      54.794 ns |      8,957.04 ns |    2.4872 |    0.0305 |        - |     41688 B |
+| Build_Dict             | 100    |        607.01 ns |       3.130 ns |        607.47 ns |    0.4416 |    0.0095 |        - |      7392 B |
+| Build_Map              | 1000   |     44,389.03 ns |     973.064 ns |     43,895.81 ns |   29.4189 |    0.6104 |        - |    492288 B |
+| Build_TransientMap     | 1000   |     21,505.54 ns |     169.379 ns |     21,496.56 ns |   10.4675 |    0.5188 |        - |    175272 B |
+| Build_MapBuilder       | 1000   |     11,979.57 ns |     203.631 ns |     11,961.01 ns |    2.7313 |    0.0916 |        - |     45936 B |
+| Build_ImmDict          | 1000   |    145,834.04 ns |     383.463 ns |    145,858.84 ns |   35.6445 |    3.6621 |        - |    598712 B |
+| Build_Dict             | 1000   |      5,864.75 ns |      37.385 ns |      5,850.49 ns |    4.3640 |    0.8698 |        - |     73168 B |
+| Build_Map              | 10000  |    634,241.37 ns |   7,368.893 ns |    632,125.18 ns |  413.0859 |   85.9375 |        - |   6915072 B |
+| Build_TransientMap     | 10000  |    241,740.35 ns |   1,182.753 ns |    241,425.54 ns |   72.7539 |   20.0195 |        - |   1220264 B |
+| Build_MapBuilder       | 10000  |    188,261.14 ns |   1,469.207 ns |    187,786.24 ns |  125.0000 |  125.0000 | 125.0000 |    635972 B |
+| Build_ImmDict          | 10000  |  1,887,838.10 ns |  10,243.033 ns |  1,883,063.16 ns |  470.7031 |  175.7813 |        - |   7882552 B |
+| Build_Dict             | 10000  |    181,170.48 ns |     885.224 ns |    181,009.45 ns |  124.7559 |  124.7559 | 124.7559 |    673148 B |
+| Build_Map              | 100000 | 13,352,245.40 ns | 675,587.686 ns | 13,180,942.52 ns | 5593.7500 | 1578.1250 |  62.5000 |  92621235 B |
+| Build_TransientMap     | 100000 |  4,111,267.83 ns |  82,502.540 ns |  4,083,680.88 ns | 1179.6875 |  695.3125 |        - |  19845032 B |
+| Build_MapBuilder       | 100000 |  2,861,721.92 ns |  59,803.892 ns |  2,864,021.21 ns |  414.0625 |  363.2813 | 281.2500 |   6507646 B |
+| Build_ImmDict          | 100000 | 31,480,295.97 ns | 849,470.357 ns | 31,346,999.86 ns | 5875.0000 | 1000.0000 |  62.5000 |  97460067 B |
+| Build_Dict             | 100000 |  1,070,066.17 ns |  63,782.635 ns |  1,057,968.13 ns |  220.7031 |  207.0313 | 207.0313 |   6038430 B |
+
+*** Retrieval
+Retrieves N/10 elements
+
+| Method                 | N      | Mean             | Error          | StdDev         | Median           |
+| Retrieve_Map           | 100    |         24.50 ns |       0.188 ns |       0.176 ns |         24.44 ns |
+| Retrieve_ImmDict       | 100    |         30.93 ns |       0.118 ns |       0.098 ns |         30.94 ns |
+| Retrieve_Dict          | 100    |         16.36 ns |       0.050 ns |       0.044 ns |         16.36 ns |
+| Retrieve_Map           | 1000   |        235.39 ns |       0.723 ns |       0.677 ns |        235.32 ns |
+| Retrieve_ImmDict       | 1000   |        526.33 ns |       9.749 ns |       8.141 ns |        525.21 ns |
+| Retrieve_Dict          | 1000   |        154.42 ns |       0.491 ns |       0.460 ns |        154.48 ns |
+| Retrieve_Map           | 10000  |      3,808.30 ns |      13.760 ns |      12.871 ns |      3,806.77 ns |
+| Retrieve_ImmDict       | 10000  |     13,218.41 ns |      43.524 ns |      40.713 ns |     13,226.65 ns |
+| Retrieve_Dict          | 10000  |      1,729.55 ns |       5.281 ns |       4.682 ns |      1,727.68 ns |
+| Retrieve_Map           | 100000 |     86,288.02 ns |     513.502 ns |     428.797 ns |     86,253.90 ns |
+| Retrieve_ImmDict       | 100000 |    964,102.39 ns |   9,164.448 ns |   8,572.430 ns |    963,404.86 ns |
+| Retrieve_Dict          | 100000 |     30,039.86 ns |     454.693 ns |     379.689 ns |     29,912.95 ns |
+
+*** Updating
+Takes a map of N elements and updates N/10 of them
+
+| Method                 | N      | Mean             | StdDev         | Median           | Gen0       | Gen1      | Gen2     | Allocated   |
+| Update_Map             | 100    |        325.58 ns |       2.434 ns |        325.70 ns |    0.2356 |    0.0005 |        - |      3944 B |
+| Update_TransientMap    | 100    |        147.82 ns |       1.093 ns |        147.85 ns |    0.0515 |         - |        - |       864 B |
+| Update_ImmDict         | 100    |        958.19 ns |      11.723 ns |        957.77 ns |    0.2308 |         - |        - |      3872 B |
+| Update_Dict            | 100    |        197.13 ns |       1.190 ns |        197.23 ns |    0.1357 |         - |        - |      2272 B |
+| Update_Map             | 1000   |      4,266.67 ns |      43.275 ns |      4,262.69 ns |    3.6926 |    0.0839 |        - |     61816 B |
+| Update_TransientMap    | 1000   |      1,205.30 ns |       4.732 ns |      1,205.17 ns |    0.5245 |    0.0153 |        - |      8792 B |
+| Update_ImmDict         | 1000   |     13,507.24 ns |      76.703 ns |     13,521.37 ns |    3.2806 |    0.1068 |        - |     54960 B |
+| Update_Dict            | 1000   |      1,888.26 ns |      23.484 ns |      1,877.85 ns |    1.3256 |    0.1011 |        - |     22192 B |
+| Update_Map             | 10000  |     63,366.19 ns |     666.225 ns |     63,229.88 ns |   44.3115 |    6.7139 |        - |    742376 B |
+| Update_TransientMap    | 10000  |     19,426.34 ns |      49.678 ns |     19,439.99 ns |    4.9133 |    0.9155 |        - |     82224 B |
+| Update_ImmDict         | 10000  |    215,919.62 ns |   2,168.950 ns |    215,785.17 ns |   43.4570 |   10.0098 |        - |    730200 B |
+| Update_Dict            | 10000  |     80,082.82 ns |     601.093 ns |     80,098.44 ns |   49.9268 |   49.9268 |  49.9268 |    202226 B |
+| Update_Map             | 100000 |  1,472,887.55 ns | 113,160.514 ns |  1,490,269.96 ns |  587.8906 |  289.0625 |        - |   9845952 B |
+| Update_TransientMap    | 100000 |    431,578.90 ns |  13,798.491 ns |    428,840.83 ns |   48.8281 |   17.5781 |        - |    821688 B |
+| Update_ImmDict         | 100000 |  4,484,754.95 ns | 374,492.303 ns |  4,309,124.17 ns |  546.8750 |  367.1875 |        - |   9183488 B |
+| Update_Dict            | 100000 |    440,942.80 ns |  26,864.498 ns |    440,516.53 ns |   57.1289 |   57.1289 |  57.1289 |   2173162 B |
+
+*** Update/set
+
+Takes a map of N elements and updates or adds N/10 elements
+
+| Method                 | N      | Mean             | StdDev         | Gen0       | Gen1      | Gen2     | Allocated   |
+
+| UpdateSet_Map          | 100    |        337.19 ns |       1.990 ns |    0.2370 |    0.0005 |        - |      3968 B |
+| UpdateSet_TransientMap | 100    |        170.85 ns |       0.971 ns |    0.0563 |         - |        - |       944 B |
+| UpdateSet_ImmDict      | 100    |        991.89 ns |       4.868 ns |    0.2613 |         - |        - |      4376 B |
+| UpdateSet_Dict         | 100    |        203.63 ns |       0.708 ns |    0.1357 |         - |        - |      2272 B |
+| UpdateSet_Map          | 1000   |      4,920.42 ns |      49.807 ns |    3.8910 |    0.1678 |        - |     65088 B |
+| UpdateSet_TransientMap | 1000   |      1,975.69 ns |      11.449 ns |    1.2665 |    0.0648 |        - |     21224 B |
+| UpdateSet_ImmDict      | 1000   |     14,409.79 ns |      51.564 ns |    3.5248 |    0.0916 |        - |     59160 B |
+| UpdateSet_Dict         | 1000   |      1,909.26 ns |      17.035 ns |    1.3256 |    0.1011 |        - |     22192 B |
+| UpdateSet_Map          | 10000  |     72,783.26 ns |     373.260 ns |   44.5557 |    7.3242 |        - |    746240 B |
+| UpdateSet_TransientMap | 10000  |     22,762.00 ns |     547.344 ns |    6.0730 |    1.2207 |        - |    102064 B |
+| UpdateSet_ImmDict      | 10000  |    217,369.98 ns |   1,699.372 ns |   46.1426 |    9.2773 |        - |    775784 B |
+| UpdateSet_Dict         | 10000  |    168,757.26 ns |   1,385.486 ns |  153.8086 |  153.8086 | 153.8086 |    622807 B |
+| UpdateSet_Map          | 100000 |  1,395,661.38 ns |  22,598.355 ns |  589.8438 |  271.4844 |        - |   9885480 B |
+| UpdateSet_TransientMap | 100000 |    474,293.63 ns |   3,575.335 ns |   52.2461 |   23.9258 |        - |    881576 B |
+| UpdateSet_ImmDict      | 100000 |  3,993,858.29 ns |  27,293.773 ns |  554.6875 |  273.4375 |        - |   9318896 B |
+| UpdateSet_Dict         | 100000 |    473,906.43 ns |  46,198.356 ns |   58.5938 |   58.5938 |  58.5938 |   2173173 B |
+
+
+*** Iterate
+Iterates through the map using a foreach loop. Despite the enumerator of Map being pretty fast, it is still very much not the best way to iterate
+through a tree. The internal iterator show this. The one I provide even manages to do unnecessary work (for this benchmark), yet is still the fastest by far.
+
+The internal iterator is however only faster on .net10 and up, since the earlier versions do not manage to inline the delegate.
+
+
+| Method                 | N      | Mean             | Error          | StdDev         | Gen0      | Allocated |
+| Iterate_Map            | 100    |        185.46 ns |       0.993 ns |       0.880 ns |         - |         - |
+| IterateInternal_Map    | 100    |         80.74 ns |       0.229 ns |       0.179 ns |    0.0052 |      88 B |
+| Iterate_ImmDict        | 100    |      1,256.49 ns |       8.808 ns |       8.239 ns |         - |         - |
+| Iterate_Dict           | 100    |         47.83 ns |       0.183 ns |       0.171 ns |         - |         - |
+| Iterate_Map            | 1000   |      1,283.39 ns |      11.798 ns |      11.036 ns |         - |         - |
+| IterateInternal_Map    | 1000   |        385.72 ns |       2.094 ns |       1.857 ns |    0.0052 |      88 B |
+| Iterate_ImmDict        | 1000   |     11,690.95 ns |      79.016 ns |      73.912 ns |         - |         - |
+| Iterate_Dict           | 1000   |        470.46 ns |       1.784 ns |       1.669 ns |         - |         - |
+| Iterate_Map            | 10000  |     16,480.00 ns |      44.802 ns |      37.412 ns |         - |         - |
+| IterateInternal_Map    | 10000  |      4,972.67 ns |      31.673 ns |      28.077 ns |         - |      88 B |
+| Iterate_ImmDict        | 10000  |    123,852.13 ns |     252.427 ns |     210.788 ns |         - |         - |
+| Iterate_Dict           | 10000  |      4,765.20 ns |      36.991 ns |      32.791 ns |         - |         - |
+| Iterate_Map            | 100000 |    260,057.20 ns |   1,594.690 ns |   1,491.674 ns |         - |         - |
+| IterateInternal_Map    | 100000 |    125,658.47 ns |     600.162 ns |     561.392 ns |         - |      88 B |
+| Iterate_ImmDict        | 100000 |  1,249,306.76 ns |  11,834.294 ns |  11,069.806 ns |         - |         - |
+| Iterate_Dict           | 100000 |     47,955.95 ns |      98.972 ns |      92.578 ns |         - |         - |
+
+*** Removal
+Takes a map of N elements and removes N/10 of the elements.
+
+| Method                 | N      | Mean             | StdDev         | Gen0      | Gen1      | Gen2     | Allocated   |
+| Remove_Map             | 100    |        340.22 ns |       2.360 ns |    0.2303 |    0.0005 |        - |      3856 B |
+| Remove_TransientMap    | 100    |        168.17 ns |       0.928 ns |    0.0496 |         - |        - |       832 B |
+| Remove_ImmDict         | 100    |        725.09 ns |       5.408 ns |    0.2213 |         - |        - |      3704 B |
+| Remove_Dict            | 100    |        204.79 ns |       3.310 ns |    0.1357 |         - |        - |      2272 B |
+| Remove_Map             | 1000   |      4,894.29 ns |      30.186 ns |    3.5706 |    0.0763 |        - |     59808 B |
+| Remove_TransientMap    | 1000   |      2,155.53 ns |      27.601 ns |    1.5831 |    0.0648 |        - |     26544 B |
+| Remove_ImmDict         | 1000   |     11,790.80 ns |     154.933 ns |    3.2196 |    0.1068 |        - |     54064 B |
+| Remove_Dict            | 1000   |      1,975.39 ns |      58.259 ns |    1.3237 |    0.0992 |        - |     22192 B |
+| Remove_Map             | 10000  |     78,635.99 ns |   2,387.785 ns |   43.5791 |    5.8594 |        - |    730944 B |
+| Remove_TransientMap    | 10000  |     28,698.14 ns |     289.587 ns |    6.5002 |    1.1902 |        - |    108752 B |
+| Remove_ImmDict         | 10000  |    200,503.76 ns |   3,084.968 ns |   43.2129 |    8.7891 |        - |    726560 B |
+| Remove_Dict            | 10000  |     80,866.75 ns |     358.208 ns |   49.9268 |   49.9268 |  49.9268 |    202226 B |
+| Remove_Map             | 100000 |  1,472,537.19 ns |  12,664.868 ns |  582.0313 |  267.5781 |        - |   9759264 B |
+| Remove_TransientMap    | 100000 |    560,139.84 ns |   8,153.431 ns |   63.4766 |   25.3906 |        - |   1065352 B |
+| Remove_ImmDict         | 100000 |  4,042,468.20 ns |  29,579.164 ns |  546.8750 |  351.5625 |        - |   9149160 B |
+| Remove_Dict            | 100000 |    446,216.83 ns |  24,179.405 ns |   65.9180 |   65.9180 |  65.9180 |   2173253 B |
+
+** Who should use this?
+
+Not a living soul. I remember feeling pretty confident it wasn't going to eat my face back in the day, but looking it it now it is doing a lot of unsafe memory access. For the love of god, just use LanguageExt.HashMap. It is fast enough and high quality.
+
+This is a work in progress that will be the default hash map for my own little programming language I am making. Any changes I make will reflect the usage of that. I might publish a nuget package, but even that is not sure. But: please, help yourself and have a look at how I did things.
+
+** Why is it fast?
+
+The vast majority of nodes in a tree is going to be leaf nodes. In this code, I was inspired by the nightmare material that is scala's vectors. Not the memory layout or any of the code, but using different classes for every level of the tree. At first I tried using 32 different kinds of nodes that all packad Slot<K,V,Node>, but in the end that ended up wasting too much memory to be useful. At small and very large maps it was very fast, but at N=1000 ... 10000 it was slowish.  I then repurposed the nodes to be leaf nodes that packed Slot<K,V>, and letting the internal nodes be regular internal nodes with the bitmaps and the two customary array types of a champ (data, and node).
+
+I also packed a ulong that contained the node capacity (used only in leaf nodes), node flags (that are set at creation, meaning I can safely Unsafe.As based on the node flags) and a 48 bit owner id (that is used by transient maps).
+
+Why did I pack this in one ulong? Possibly because I didn't really trust the different Packing directives in dotnet. I had issues with reading protected memory, despite me being very diligent with how things were laid out. I might have been trying to avoid load instructions. 
+
+Anyway, there are 32 different kinds of exact-fit leaf nodes. They contain a ulong meta and N inline slots. This removes one memory indirection compared to using regular arrays. There are also 32 different kinds of internalnodes (the data array is just an array) where the child pointers are inline. 
+** The really ugly parts
+The transient functionality and persistent functionality are in two different places, despite merging them being pretty simple.
+
+it relies on a lot unsafe memory access, while also being relatively untested.
+
+No documentation at all.
+
+Naming is all over the place.
+
+** What can be made faster?
+
+I do think I am past the point where there are simple things that yield a large speedup, but there are still many things that can be done with regards to making it faster. With regards to leaf nodes, I am pretty sure they are pretty optimal except for the indirection when allocating.
+
+What I really would like to do is to find a way to do dynamic inline arrays, where I can allocate a Node and tell the GC that there are N*NodePointers at the end. Right now I haven't figured that out.
+
+I think some of the methods could be rewritten to be iterative rather than recursive. This was a slight win for TryGetValue, but that method is also the most sensitive.
+
+* License
+
+
+MPLv2. 
