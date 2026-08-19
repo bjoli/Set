@@ -4,3 +4,6 @@ obj/
 .vscode/
 Benchmarks/BenchmarkDotNet.Artifacts/
 *.user
+Set/obj/**/*
+Tests/obj/**/*
+Tests/bin/*
