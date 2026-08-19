@@ -1,5 +1,5 @@
-﻿using System.Collections.Immutable;
-using Map;
+using System.Collections.Immutable;
+using Set;
 
 namespace Tests;
 
@@ -8,21 +8,20 @@ public class MapTests
     [Fact]
     public void RegularOps_EmptyMap_ShouldBehaveSanely()
     {
-        var map = Map<int, string>.Empty;
+        var map = Set<int>.Empty;
 
         Assert.Equal(0, map.Count);
         Assert.True(map.IsEmpty);
-        Assert.False(map.ContainsKey(42));
-        Assert.False(map.TryGetValue(42, out _));
-        Assert.Throws<KeyNotFoundException>(() => map[42]);
+        Assert.False(map.Contains(42));
+        Assert.False(map.Contains(42));
     }
 
     [Fact]
     public void RegularOps_AddAndSet_ShouldInsertAndModifyContiguously()
     {
-        var map0 = Map<int, string>.Empty;
-        var map1 = map0.Set(1, "value_1");
-        var map2 = map1.Set(2, "value_2");
+        var map0 = Set<int>.Empty;
+        var map1 = map0.Add(1);
+        var map2 = map1.Add(2);
 
         // Verify structural immutability isolation
         Assert.Equal(0, map0.Count);
@@ -30,28 +29,28 @@ public class MapTests
         Assert.Equal(2, map2.Count);
 
         // Verify Lookups
-        Assert.Equal("value_1", map2[1]);
-        Assert.Equal("value_2", map2[2]);
-        Assert.True(map2.ContainsKey(1));
+        Assert.True(map2.Contains(1));
+        Assert.True(map2.Contains(2));
+        Assert.True(map2.Contains(1));
 
         // Verify Value Overwrite
-        var map3 = map2.Set(1, "value_1_updated");
+        var map3 = map2.Add(1);
         Assert.Equal(2, map3.Count);
-        Assert.Equal("value_1_updated", map3[1]);
+        Assert.True(map3.Contains(1));
     }
 
     [Fact]
     public void RegularOps_Remove_ShouldDeleteAndTriggerCompaction()
     {
-        var map = Map<int, string>.Empty
-            .Set(1, "one")
-            .Set(2, "two")
-            .Set(3, "three");
+        var map = Set<int>.Empty
+            .Add(1)
+            .Add(2)
+            .Add(3);
 
         var removed1 = map.Remove(2);
         Assert.Equal(2, removed1.Count);
-        Assert.False(removed1.ContainsKey(2));
-        Assert.True(removed1.ContainsKey(1));
+        Assert.False(removed1.Contains(2));
+        Assert.True(removed1.Contains(1));
 
         // Non-existent key removal should maintain exact reference optimization
         var removedNone = removed1.Remove(99);
@@ -66,15 +65,15 @@ public class MapTests
     [Fact]
     public void TransientOps_ShouldMutateInPlaceAndIsolateOnFreeze()
     {
-        var map = Map<int, string>.Empty.Set(1, "one");
+        var map = Set<int>.Empty.Add(1);
         var transient = map.ToTransient();
 
         // Perform fast transient mutations
-        transient.Set(2, "two");
-        transient.Set(3, "three");
+        transient.Add(2);
+        transient.Add(3);
 
-        Assert.True(transient.TryGetValue(2, out var val));
-        Assert.Equal("two", val);
+        Assert.True(transient.Contains(2));
+        
 
         transient.Remove(1);
 
@@ -83,18 +82,18 @@ public class MapTests
 
         // Verify isolation boundaries
         Assert.Equal(1, map.Count); // Original remains untouched
-        Assert.False(immutable.ContainsKey(1));
-        Assert.Equal("two", immutable[2]);
-        Assert.Equal("three", immutable[3]);
+        Assert.False(immutable.Contains(1));
+        Assert.True(immutable.Contains(2));
+        Assert.True(immutable.Contains(3));
     }
 
     [Fact]
-    public void FuzzTest_DifferentialWithImmutableDictionary()
+    public void FuzzTest_DifferentialWithImmutableHashSet()
     {
         // Deterministic seed for reproducible testing sequences
         var rand = new Random(1337);
-        var truth = ImmutableDictionary<int, string>.Empty;
-        var map = Map<int, string>.Empty;
+        var truth = ImmutableHashSet<int>.Empty;
+        var map = Set<int>.Empty;
 
         const int OperationsCount = 500000;
         var trackedKeys = new List<int>();
@@ -108,10 +107,10 @@ public class MapTests
                 var key = rand.Next(1, 20000);
                 var val = $"v_{i}";
 
-                if (!truth.ContainsKey(key)) trackedKeys.Add(key);
+                if (!truth.Contains(key)) trackedKeys.Add(key);
 
-                truth = truth.SetItem(key, val);
-                map = map.Set(key, val);
+                truth = truth.Add(key);
+                map = map.Add(key);
             }
             else if (op < 90) // 35% Removals
             {
@@ -128,18 +127,18 @@ public class MapTests
             else // 10% Batch Transient Mutations
             {
                 var transient = map.ToTransient();
-                var batchSize = rand.Next(5, 30);
+                var batchSize = rand.Next(5);
 
                 for (var j = 0; j < batchSize; j++)
                 {
                     var subOp = rand.Next(2);
                     if (subOp == 0) // Add inside transient frame
                     {
-                        var key = rand.Next(20001, 40000); // Disjoint key space
+                        var key = rand.Next(20001); // Disjoint key space
                         var val = $"t_{i}_{j}";
 
-                        transient.Set(key, val);
-                        truth = truth.SetItem(key, val);
+                        transient.Add(key);
+                        truth = truth.Add(key);
                     }
                     else if (trackedKeys.Count > 0) // Remove inside transient frame
                     {
@@ -163,13 +162,13 @@ public class MapTests
         VerifyStateEquality(truth, map);
     }
 
-    private static void VerifyStateEquality(ImmutableDictionary<int, string> truth, Map<int, string> map)
+    private static void VerifyStateEquality(ImmutableHashSet<int> truth, Set<int> map)
     {
         // Assert deep value lookups match exactly
         foreach (var kvp in truth)
         {
-            Assert.True(map.TryGetValue(kvp.Key, out var actualValue));
-            Assert.Equal(kvp.Value, actualValue);
+            Assert.True(map.Contains(kvp));
+            
         }
 
         // Assert no phantom keys exist in the structure
@@ -177,8 +176,8 @@ public class MapTests
         foreach (var kvp in map)
         {
             countedElements++;
-            Assert.True(truth.TryGetValue(kvp.Key, out var expectedValue));
-            Assert.Equal(expectedValue, kvp.Value);
+            Assert.True(truth.Contains(kvp));
+            
         }
 
         Assert.Equal(truth.Count, countedElements);

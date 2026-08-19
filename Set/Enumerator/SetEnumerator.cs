@@ -16,14 +16,14 @@ internal struct EnumeratorStack
     private StackFrame _element0;
 }
 
-public struct MapEnumerator<T> : IEnumerator<KeyValuePair<T>>
+public struct SetEnumerator<T> : IEnumerator<T>
 {
     private EnumeratorStack _stack;
     private int _depth;
     private DataSlot<T> _current;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal MapEnumerator(NodeBase? root)
+    internal SetEnumerator(NodeBase? root)
     {
         _current = default;
         if (root == null)
@@ -37,10 +37,10 @@ public struct MapEnumerator<T> : IEnumerator<KeyValuePair<T>>
         }
     }
 
-    public readonly KeyValuePair<T> Current
+    public readonly T Current
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => new(_current.Key, _current.Value);
+        get => _current.Key;
     }
 
     readonly object IEnumerator.Current => Current;

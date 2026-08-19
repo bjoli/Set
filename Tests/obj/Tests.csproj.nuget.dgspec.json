@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/home/linus/Programmering/c#/Map/Tests/Tests.csproj": {}
+    "/var/home/linus/Programmering/c#/Set/Tests/Tests.csproj": {}
   },
   "projects": {
-    "/home/linus/Programmering/c#/Map/Map/Map.csproj": {
+    "/var/home/linus/Programmering/c#/Set/Set/Set.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/linus/Programmering/c#/Map/Map/Map.csproj",
-        "projectName": "Map",
-        "projectPath": "/home/linus/Programmering/c#/Map/Map/Map.csproj",
+        "projectUniqueName": "/var/home/linus/Programmering/c#/Set/Set/Set.csproj",
+        "projectName": "Set",
+        "projectPath": "/var/home/linus/Programmering/c#/Set/Set/Set.csproj",
         "packagesPath": "/home/linus/.nuget/packages/",
-        "outputPath": "/home/linus/Programmering/c#/Map/Map/obj/",
+        "outputPath": "/var/home/linus/Programmering/c#/Set/Set/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/home/linus/.nuget/NuGet/NuGet.Config"
@@ -338,14 +338,14 @@
         }
       }
     },
-    "/home/linus/Programmering/c#/Map/Tests/Tests.csproj": {
+    "/var/home/linus/Programmering/c#/Set/Tests/Tests.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/linus/Programmering/c#/Map/Tests/Tests.csproj",
+        "projectUniqueName": "/var/home/linus/Programmering/c#/Set/Tests/Tests.csproj",
         "projectName": "Tests",
-        "projectPath": "/home/linus/Programmering/c#/Map/Tests/Tests.csproj",
+        "projectPath": "/var/home/linus/Programmering/c#/Set/Tests/Tests.csproj",
         "packagesPath": "/home/linus/.nuget/packages/",
-        "outputPath": "/home/linus/Programmering/c#/Map/Tests/obj/",
+        "outputPath": "/var/home/linus/Programmering/c#/Set/Tests/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/home/linus/.nuget/NuGet/NuGet.Config"
@@ -361,8 +361,8 @@
           "net10.0": {
             "targetAlias": "net10.0",
             "projectReferences": {
-              "/home/linus/Programmering/c#/Map/Map/Map.csproj": {
-                "projectPath": "/home/linus/Programmering/c#/Map/Map/Map.csproj"
+              "/var/home/linus/Programmering/c#/Set/Set/Set.csproj": {
+                "projectPath": "/var/home/linus/Programmering/c#/Set/Set/Set.csproj"
               }
             }
           }

@@ -8,8 +8,8 @@
     ".NETCoreApp,Version=v10.0": {
       "Tests/1.0.0": {
         "dependencies": {
-          "Map": "1.0.0",
           "Microsoft.NET.Test.Sdk": "17.14.1",
+          "Set": "1.0.0",
           "xunit": "2.9.3"
         },
         "runtime": {
@@ -331,9 +331,9 @@
           }
         }
       },
-      "Map/1.0.0": {
+      "Set/1.0.0": {
         "runtime": {
-          "Map.dll": {
+          "Set.dll": {
             "assemblyVersion": "1.0.0.0",
             "fileVersion": "1.0.0.0"
           }
@@ -424,7 +424,7 @@
       "path": "xunit.extensibility.execution/2.9.3",
       "hashPath": "xunit.extensibility.execution.2.9.3.nupkg.sha512"
     },
-    "Map/1.0.0": {
+    "Set/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

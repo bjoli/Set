@@ -22,12 +22,12 @@ public sealed class TransientSet<T> where T : notnull
     private ulong _ownerId;
     private NodeBase? _root;
 
-    internal TransientMap(NodeBase? root, IEqualityComparer<T> comparer)
+    internal TransientSet(NodeBase? root, IEqualityComparer<T> comparer, int count = 0)
     {
         _root = root;
         _comparer = comparer;
         _ownerId = OwnerId.Next();
-        _count = 0;
+        _count = count;
     }
 
     /// <summary>
@@ -40,39 +40,27 @@ public sealed class TransientSet<T> where T : notnull
     /// </param>
     /// <returns><c>true</c> if the key was found; otherwise, <c>false</c>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryGetValue(T key, out TV value)
+    public bool Contains(T key)
     {
         if (_root == null)
         {
-            value = default!;
+            
             return false;
         }
 
         var hash = _comparer.GetHashCode(key);
-        return TrieOps.TryGetValue(_root, key, hash, _comparer, out value);
+        return TrieOps.Contains(_root, key, hash, _comparer);
     }
 
-    /// <summary>
-    ///     Adds an element with the provided key and value to the map. If the key already exists,
-    ///     the existing value is updated.
-    /// </summary>
-    /// <param name="key">The object to use as the key of the element to add.</param>
-    /// <param name="value">The object to use as the value of the element to add.</param>
-    public void Set(T key, TV value)
-    {
-        var hash = _comparer.GetHashCode(key ?? throw new ArgumentNullException(nameof(key)));
-        _root = TrieOps.InsertTransient(_root, key, value, hash, 0, _comparer, _ownerId, out var added);
-        if (added) _count++;
-    }
-    
-    public void Add(T key, TV value)
+
+    public void Add(T key)
     {
         var hash = _comparer.GetHashCode(key ?? throw new ArgumentNullException(nameof(key)));
         if (TrieOps.TryGetKey<T>(_root, key, hash, _comparer, out _))
         {
-            throw new ArgumentException($"The key {key} is already registered.", nameof(key));
+            return;
         }
-        _root = TrieOps.InsertTransient(_root, key, value, hash, 0, _comparer, _ownerId, out  _);
+        _root = TrieOps.InsertTransient(_root, key, hash, 0, _comparer, _ownerId, out  _);
         _count++;
     }
     

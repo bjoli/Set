@@ -22,7 +22,7 @@ internal static partial class TrieOps
     // the tree using chunks of the hash, and depending on whether we hit an empty spot, a leaf, or an 
     // internal node, we either slot it right in or do some painful allocations to expand the node. 
     // It's not pretty, but it avoids even worse performance.
-    public static NodeBase Insert<T>(NodeBase? node, T key, TV value, int hash, int shift,
+    public static NodeBase Insert<T>(NodeBase? node, T key, int hash, int shift,
         IEqualityComparer<T> comparer, out bool added)
     {
         // The following handles the base case of an empty tree like this: we just allocate a single 
@@ -32,7 +32,7 @@ internal static partial class TrieOps
             var bitpos0 = 1u << ((hash >> shift) & 0x1F);
             var newNode = NodeOps.AllocateLeaf<T>(1, NodeFlags.None, 0, bitpos0);
             var mySpan = NodeOps.GetLeafDataSpan<T>(newNode);
-            mySpan[0] = new DataSlot<T> { Key = key, Value = value };
+            mySpan[0] = new DataSlot<T> { Key = key };
             // We added a value.
             added = true;
             return newNode;
@@ -52,25 +52,14 @@ internal static partial class TrieOps
             for (var i = 0; i < length; i++)
                 if (comparer.Equals(oldSlots[i].Key, key))
                 {
-                    // Is this optimization worth it? Probably not, but I left it in anyway.
-                    if (ReferenceEquals(oldSlots[i].Value, value))
-                    {
-                        added = false;
-                        return node;
-                    }
-
-                    var updatedSlots = new DataSlot<T>[length];
-                    oldSlots.AsSpan().CopyTo(updatedSlots);
-                    // Array.Copy(oldSlots, updatedSlots, length);
-                    updatedSlots[i] = DataSlot<T>.Data(key, value);
                     added = false;
-                    return new CollisionNode<T>(updatedSlots);
+                    return node;
                 }
 
             var appendedSlots = new DataSlot<T>[length + 1];
             //Array.Copy(oldSlots, appendedSlots, length);
             oldSlots.AsSpan(0, length).CopyTo(appendedSlots);
-            appendedSlots[length] = DataSlot<T>.Data(key, value);
+            appendedSlots[length] = DataSlot<T>.Data(key);
             added = true;
             return new CollisionNode<T>(appendedSlots);
         }
@@ -96,11 +85,11 @@ internal static partial class TrieOps
                 if (comparer.Equals(existingSlot.Key, key))
                 {
                     added = false;
-                    if (EqualityComparer<TV>.Default.Equals(existingSlot.Value, value)) return node;
+                    if (true /* values removed */) return node;
 
                     var newData0 = new DataSlot<T>[dataArray!.Length];
                     dataArray.AsSpan().CopyTo(newData0);
-                    newData0[dataIdx] = new DataSlot<T> { Key = key, Value = value };
+                    newData0[dataIdx] = new DataSlot<T> { Key = key };
 
 
                     var childCap = NodeOps.GetCapacity(node.Meta);
@@ -113,7 +102,7 @@ internal static partial class TrieOps
                 }
 
                 // Data collision -> Promote data slot to sub-node
-                var subNode = MergeDataSlots(existingSlot, key, value, hash, shift + 5, comparer);
+                var subNode = MergeDataSlots(existingSlot, key, hash, shift + 5, comparer);
                 var newMap = ((ulong)(nodeMap | bitpos) << 32) | (dataMap & ~bitpos);
 
                 var newData = new DataSlot<T>[dataArray!.Length - 1];
@@ -145,7 +134,7 @@ internal static partial class TrieOps
                     ref Unsafe.As<NodeSlot1, NodeBase>(ref Unsafe.As<InternalNode1<T>>(node).Children);
                 var childNode = Unsafe.Add(ref firstChild, nodeIdx);
 
-                var newChildNode = Insert(childNode, key, value, hash, shift + 5, comparer, out added);
+                var newChildNode = Insert(childNode, key, hash, shift + 5, comparer, out added);
 
                 if (ReferenceEquals(childNode, newChildNode)) return node;
 
@@ -165,7 +154,7 @@ internal static partial class TrieOps
             added = true;
             var appendedData = new DataSlot<T>[dataArray!.Length + 1];
             dataArray.AsSpan(0, dataIdx).CopyTo(appendedData);
-            appendedData[dataIdx] = new DataSlot<T> { Key = key, Value = value };
+            appendedData[dataIdx] = new DataSlot<T> { Key = key };
             dataArray.AsSpan(dataIdx).CopyTo(appendedData.AsSpan(dataIdx + 1));
 
             var childCapEmpty = NodeOps.GetCapacity(node.Meta);
@@ -190,7 +179,7 @@ internal static partial class TrieOps
             if (comparer.Equals(existingSlot.Key, key))
             {
                 added = false;
-                if (EqualityComparer<TV>.Default.Equals(existingSlot.Value, value)) return node;
+                if (true /* values removed */) return node;
 
                 var leafCap = NodeOps.GetCapacity(node.Meta);
                 var updatedLeaf = NodeOps.AllocateLeaf<T>(leafCap, NodeFlags.None, 0, node.Map);
@@ -198,13 +187,13 @@ internal static partial class TrieOps
                 var oldLeafSpan = NodeOps.GetLeafDataSpan<T>(node);
                 var newSpan = NodeOps.GetLeafDataSpan<T>(updatedLeaf);
                 oldLeafSpan.CopyTo(newSpan);
-                newSpan[dataIdx] = new DataSlot<T> { Key = key, Value = value };
+                newSpan[dataIdx] = new DataSlot<T> { Key = key };
                 return updatedLeaf;
             }
 
             // Leaf collision -> Must upgrade to InternalNode
             added = true;
-            var subNode = MergeDataSlots(existingSlot, key, value, hash, shift + 5, comparer);
+            var subNode = MergeDataSlots(existingSlot, key, hash, shift + 5, comparer);
             var newMap = ((ulong)bitpos << 32) | (dataMap & ~bitpos);
 
             var leafSpan = NodeOps.GetLeafDataSpan<T>(node);
@@ -229,7 +218,7 @@ internal static partial class TrieOps
         var expandedSpan = NodeOps.GetLeafDataSpan<T>(expandedLeaf);
 
         leafSpanOld[..dataIdx].CopyTo(expandedSpan);
-        expandedSpan[dataIdx] = new DataSlot<T> { Key = key, Value = value };
+        expandedSpan[dataIdx] = new DataSlot<T> { Key = key };
         leafSpanOld[dataIdx..].CopyTo(expandedSpan[(dataIdx + 1)..]);
 
         return expandedLeaf;
@@ -238,7 +227,7 @@ internal static partial class TrieOps
     // The following handles merging two values that hash to the same spot. 
     // it figures out how deep we have to go before their hashes finally differ, and builds 
     // up the necessary nodes along the way.
-    private static NodeBase MergeDataSlots<T>(DataSlot<T> existingSlot, T newKey, TV newValue, int newHash,
+    private static NodeBase MergeDataSlots<T>(DataSlot<T> existingSlot, T newKey, int newHash,
         int shift, IEqualityComparer<T> comparer, ulong ownerId = 0)
     {
         var existingHash = comparer.GetHashCode(existingSlot.Key!);
@@ -247,7 +236,7 @@ internal static partial class TrieOps
         if (existingHash == newHash)
             return new CollisionNode<T>([
                 existingSlot,
-                new DataSlot<T> { Key = newKey, Value = newValue }
+                new DataSlot<T> { Key = newKey }
             ], ownerId);
 
         var existingBit = (existingHash >> shift) & 0x1F;
@@ -263,11 +252,11 @@ internal static partial class TrieOps
             if (existingBit < newBit)
             {
                 span[0] = existingSlot;
-                span[1] = new DataSlot<T> { Key = newKey, Value = newValue };
+                span[1] = new DataSlot<T> { Key = newKey };
             }
             else
             {
-                span[0] = new DataSlot<T> { Key = newKey, Value = newValue };
+                span[0] = new DataSlot<T> { Key = newKey };
                 span[1] = existingSlot;
             }
 
@@ -276,7 +265,7 @@ internal static partial class TrieOps
 
         // 3. Bits are identical at this depth, recurse deeper
         var nodeMap = 1u << existingBit;
-        var subNode = MergeDataSlots(existingSlot, newKey, newValue, newHash, shift + 5, comparer, ownerId);
+        var subNode = MergeDataSlots(existingSlot, newKey, newHash, shift + 5, comparer, ownerId);
 
         var newNodeObj =
             NodeOps.AllocateInternal<T>(1, NodeFlags.Internal, ownerId, (ulong)nodeMap << 32);
@@ -289,8 +278,7 @@ internal static partial class TrieOps
     // Key lookup! it zips down the tree, decoding the bitmap
     // at each level to figure out exactly which array index holds our data or next node.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool TryGetValue<T>(NodeBase? node, T key, int hash, IEqualityComparer<T> comparer,
-        out TV value)
+    public static bool Contains<T>(NodeBase? node, T key, int hash, IEqualityComparer<T> comparer)
     {
         var shift = 0;
         var current = node;
@@ -306,7 +294,7 @@ internal static partial class TrieOps
                 for (var i = 0; i < slots.Length; i++)
                     if (comparer.Equals(slots[i].Key, key))
                     {
-                        value = slots[i].Value;
+                        
                         return true;
                     }
 
@@ -330,7 +318,7 @@ internal static partial class TrieOps
 
                     if (comparer.Equals(slot.Key, key))
                     {
-                        value = slot.Value;
+                        
                         return true;
                     }
 
@@ -364,7 +352,7 @@ internal static partial class TrieOps
 
                 if (comparer.Equals(slot.Key, key))
                 {
-                    value = slot.Value;
+                    
                     return true;
                 }
             }
@@ -372,7 +360,7 @@ internal static partial class TrieOps
             break;
         }
 
-        value = default!;
+        
         return false;
     }
 
@@ -462,6 +450,7 @@ internal static partial class TrieOps
             break;
         }
 
+        
         value = default!;
         return false;
     }
@@ -681,8 +670,7 @@ internal static partial class TrieOps
         NodeBase? node1,
         NodeBase? node2,
         int shift,
-        IEqualityComparer<T> comparer,
-        Func<T, TV, TV, TV>? conflictResolver)
+        IEqualityComparer<T> comparer)
     {
         if (node1 == null) return node2;
         if (node2 == null) return node1;
@@ -698,16 +686,9 @@ internal static partial class TrieOps
             foreach (var slot in col1.Slots)
             {
                 var h = comparer.GetHashCode(slot.Key!);
-                if (TryGetValue(node2, slot.Key, h, comparer, out TV existingVal2))
+                if (!Contains(node2, slot.Key, h, comparer))
                 {
-                    var resolvedVal = conflictResolver != null
-                        ? conflictResolver(slot.Key, slot.Value, existingVal2)
-                        : existingVal2;
-                    current = Insert(current, slot.Key, resolvedVal, h, shift, comparer, out _);
-                }
-                else
-                {
-                    current = Insert(current, slot.Key, slot.Value, h, shift, comparer, out _);
+                    current = Insert(current, slot.Key, h, shift, comparer, out _);
                 }
             }
 
@@ -721,16 +702,9 @@ internal static partial class TrieOps
             foreach (var slot in col2.Slots)
             {
                 var h = comparer.GetHashCode(slot.Key!);
-                if (TryGetValue(node1, slot.Key, h, comparer, out TV existingVal1))
+                if (!Contains(node1, slot.Key, h, comparer))
                 {
-                    var resolvedVal = conflictResolver != null
-                        ? conflictResolver(slot.Key, existingVal1, slot.Value)
-                        : slot.Value;
-                    current = Insert(current, slot.Key, resolvedVal, h, shift, comparer, out _);
-                }
-                else
-                {
-                    current = Insert(current, slot.Key, slot.Value, h, shift, comparer, out _);
+                    current = Insert(current, slot.Key, h, shift, comparer, out _);
                 }
             }
 
@@ -850,16 +824,13 @@ internal static partial class TrieOps
             {
                 if (comparer.Equals(d1.Key, d2.Key))
                 {
-                    var resolvedVal = conflictResolver != null
-                        ? conflictResolver(d1.Key!, d1.Value!, d2.Value!)
-                        : d2.Value;
-                    pooledData[dataCount++] = DataSlot<T>.Data(d1.Key!, resolvedVal!);
+                    pooledData[dataCount++] = DataSlot<T>.Data(d1.Key!);
                     finalDataMap |= bitpos;
                 }
                 else
                 {
                     var h2 = comparer.GetHashCode(d2.Key!);
-                    var subNode = MergeDataSlots(d1!, d2.Key, d2.Value, h2, shift + 5, comparer!);
+                    var subNode = MergeDataSlots(d1, d2.Key, h2, shift + 5, comparer);
                     pooledNodes[nodeCount++] = subNode;
                     finalNodeMap |= bitpos;
                 }
@@ -867,7 +838,7 @@ internal static partial class TrieOps
             // Case 4: Both elements contain internal sub-nodes
             else if (hasNode1 && hasNode2)
             {
-                var subNode = Merge(n1, n2, shift + 5, comparer, conflictResolver);
+                var subNode = Merge(n1, n2, shift + 5, comparer);
                 if (subNode != null)
                 {
                     pooledNodes[nodeCount++] = subNode;
@@ -882,7 +853,7 @@ internal static partial class TrieOps
                 var microLeaf = NodeOps.AllocateLeaf<T>(1, NodeFlags.None, 0, bitposNext);
                 NodeOps.GetLeafDataSpan<T>(microLeaf)[0] = d1;
 
-                var mergedSubNode = Merge(microLeaf, n2, shift + 5, comparer, conflictResolver);
+                var mergedSubNode = Merge(microLeaf, n2, shift + 5, comparer);
                 if (mergedSubNode != null)
                 {
                     pooledNodes[nodeCount++] = mergedSubNode;
@@ -896,7 +867,7 @@ internal static partial class TrieOps
                 var microLeaf = NodeOps.AllocateLeaf<T>(1, NodeFlags.None, 0, bitposNext);
                 NodeOps.GetLeafDataSpan<T>(microLeaf)[0] = d2;
 
-                var mergedSubNode = Merge(n1, microLeaf, shift + 5, comparer, conflictResolver);
+                var mergedSubNode = Merge(n1, microLeaf, shift + 5, comparer);
                 if (mergedSubNode != null)
                 {
                     pooledNodes[nodeCount++] = mergedSubNode;
@@ -930,7 +901,7 @@ internal static partial class TrieOps
         return resultNode;
     }
 
-    public static bool Iter<T>(NodeBase? node, Func<T, TV, bool> action)
+    public static bool Iter<T>(NodeBase? node, Func<T, bool> action)
     {
         if (node == null) return true;
 
@@ -940,7 +911,7 @@ internal static partial class TrieOps
         {
             var span = NodeOps.GetLeafDataSpan<T>(node);
             for (var i = 0; i < span.Length; i++)
-                if (!action(span[i].Key, span[i].Value))
+                if (!action(span[i].Key))
                     return false;
             return true;
         }
@@ -950,7 +921,7 @@ internal static partial class TrieOps
             var dataArray = NodeOps.GetDataArray<T>(node);
             if (dataArray != null)
                 for (var i = 0; i < dataArray.Length; i++)
-                    if (dataArray[i].Key != null && !action(dataArray[i].Key, dataArray[i].Value))
+                    if (dataArray[i].Key != null && !action(dataArray[i].Key))
                         return false;
 
             var childSpan = NodeOps.GetChildSpan<T>(node);
@@ -966,7 +937,7 @@ internal static partial class TrieOps
         var slots = colNode.Slots;
 
         for (var i = 0; i < slots.Length; i++)
-            if (!action(slots[i].Key, slots[i].Value))
+            if (!action(slots[i].Key))
                 return false;
 
 

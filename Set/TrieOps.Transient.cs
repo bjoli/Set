@@ -17,14 +17,14 @@ internal static partial class TrieOps
 {
     // Well, if you thought the immutable Insert, this is actually the same, but it checks if the instance of TransientMap that 
     // had Insert called on it owns the node.
-    public static NodeBase InsertTransient<T>(NodeBase? node, T key, TV value, int hash, int shift,
+    public static NodeBase InsertTransient<T>(NodeBase? node, T key, int hash, int shift,
         IEqualityComparer<T> comparer, ulong ownerId, out bool added)
     {
         if (node == null)
         {
             var bitpos0 = 1u << ((hash >> shift) & 0x1F);
             var newNode = NodeOps.AllocateLeaf<T>(1, NodeFlags.None, ownerId, bitpos0);
-            NodeOps.GetLeafDataSpan<T>(newNode)[0] = new DataSlot<T> { Key = key, Value = value };
+            NodeOps.GetLeafDataSpan<T>(newNode)[0] = new DataSlot<T> { Key = key };
             added = true;
             return newNode;
         }
@@ -41,22 +41,13 @@ internal static partial class TrieOps
                 if (comparer.Equals(slots[i].Key, key))
                 {
                     added = false;
-                    if (isMutable)
-                    {
-                        slots[i].Value = value;
-                        return node;
-                    }
-
-                    var updatedSlots = new DataSlot<T>[slots.Length];
-                    slots.AsSpan().CopyTo(updatedSlots);
-                    updatedSlots[i] = new DataSlot<T> { Key = key, Value = value };
-                    return new CollisionNode<T>(updatedSlots, ownerId);
+                    return node;
                 }
 
             added = true;
             var appendedSlots = new DataSlot<T>[slots.Length + 1];
             slots.AsSpan().CopyTo(appendedSlots);
-            appendedSlots[slots.Length] = new DataSlot<T> { Key = key, Value = value };
+            appendedSlots[slots.Length] = new DataSlot<T> { Key = key };
 
             if (isMutable)
             {
@@ -84,24 +75,10 @@ internal static partial class TrieOps
                 if (comparer.Equals(slot.Key, key))
                 {
                     added = false;
-                    if (isMutable)
-                    {
-                        slot.Value = value;
-                        return node;
-                    }
-
-                    var newData = new DataSlot<T>[dataArray!.Length];
-                    dataArray.AsSpan().CopyTo(newData);
-                    newData[dataIdx] = new DataSlot<T> { Key = key, Value = value };
-
-                    var childCap = NodeOps.GetCapacity(node.Meta);
-                    var newNodeObj0 = NodeOps.AllocateInternal<T>(childCap, NodeFlags.Internal, ownerId, node.Map);
-                    Unsafe.As<InternalNode1<T>>(newNodeObj0).Data = newData;
-                    NodeOps.GetChildSpan<T>(node).CopyTo(NodeOps.GetChildSpan<T>(newNodeObj0));
-                    return newNodeObj0;
+                    return node;
                 }
 
-                var subNode = MergeDataSlots(slot, key, value, hash, shift + 5, comparer, ownerId);
+                var subNode = MergeDataSlots(slot, key, hash, shift + 5, comparer, ownerId);
                 var newMap = ((ulong)(nodeMap | bitpos) << 32) | (dataMap & ~bitpos);
 
                 var shrunkData = new DataSlot<T>[dataArray!.Length - 1];
@@ -132,7 +109,7 @@ internal static partial class TrieOps
                 var childNode = Unsafe.Add(ref firstChild, nodeIdx);
 
                 var newChildNode =
-                    InsertTransient(childNode, key, value, hash, shift + 5, comparer, ownerId, out added);
+                    InsertTransient(childNode, key, hash, shift + 5, comparer, ownerId, out added);
 
                 if (isMutable)
                 {
@@ -160,7 +137,7 @@ internal static partial class TrieOps
             var currentData = NodeOps.GetDataArray<T>(node);
             var appendedData = new DataSlot<T>[currentData!.Length + 1];
             currentData.AsSpan(0, dataIdx).CopyTo(appendedData);
-            appendedData[dataIdx] = new DataSlot<T> { Key = key, Value = value };
+            appendedData[dataIdx] = new DataSlot<T> { Key = key };
             currentData.AsSpan(dataIdx).CopyTo(appendedData.AsSpan(dataIdx + 1));
 
             var insertMap = node.Map | bitpos;
@@ -189,23 +166,11 @@ internal static partial class TrieOps
             if (comparer.Equals(existingSlot.Key, key))
             {
                 added = false;
-                if (isMutable)
-                {
-                    existingSlot.Value = value;
-                    return node;
-                }
-
-                var leafCap = NodeOps.GetCapacity(node.Meta);
-                var updatedLeaf = NodeOps.AllocateLeaf<T>(leafCap, NodeFlags.None, ownerId, node.Map);
-                var oldLeafSpan = NodeOps.GetLeafDataSpan<T>(node);
-                var newSpan = NodeOps.GetLeafDataSpan<T>(updatedLeaf);
-                oldLeafSpan.CopyTo(newSpan);
-                newSpan[dataIdx] = new DataSlot<T> { Key = key, Value = value };
-                return updatedLeaf;
+                return node;
             }
 
             added = true;
-            var subNode = MergeDataSlots(existingSlot, key, value, hash, shift + 5, comparer, ownerId);
+            var subNode = MergeDataSlots(existingSlot, key, hash, shift + 5, comparer, ownerId);
             var newMap = ((ulong)bitpos << 32) | (dataMap & ~bitpos);
 
             var leafSpan = NodeOps.GetLeafDataSpan<T>(node);
@@ -227,7 +192,7 @@ internal static partial class TrieOps
         var expandedSpan = NodeOps.GetLeafDataSpan<T>(expandedLeaf);
 
         oldLeafSpan2[..dataIdx].CopyTo(expandedSpan);
-        expandedSpan[dataIdx] = new DataSlot<T> { Key = key, Value = value };
+        expandedSpan[dataIdx] = new DataSlot<T> { Key = key };
         oldLeafSpan2[dataIdx..].CopyTo(expandedSpan[(dataIdx + 1)..]);
 
         return expandedLeaf;

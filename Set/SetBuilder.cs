@@ -34,7 +34,6 @@ internal struct BuilderEntry<T>
 {
     public int Hash;
     public T Key;
-    public TV Value;
 }
 
 /// <summary>
@@ -52,7 +51,7 @@ public sealed class SetBuilder<T> where T : notnull
     ///     Creates a new MapBuilder.
     ///     You can optionally provide a custom comparer for keys and an initial capacity.
     /// </summary>
-    public MapBuilder(IEqualityComparer<T>? comparer = null, int initialCapacity = 16)
+    public SetBuilder(IEqualityComparer<T>? comparer = null, int initialCapacity = 16)
     {
         // We allocate an array to hold the entries.
         // GC.AllocateUninitializedArray is a performance trick to avoid zeroing out the memory.
@@ -64,7 +63,7 @@ public sealed class SetBuilder<T> where T : notnull
     ///     Adds a key-value pair to the builder.
     ///     If the internal array is full, it will be resized.
     /// </summary>
-    public void Add(T key, TV value)
+    public void Add(T key)
     {
         var entries = _entries;
         var count = _count;
@@ -85,7 +84,6 @@ public sealed class SetBuilder<T> where T : notnull
 
         dest.Hash = _comparer.GetHashCode(key);
         dest.Key = key;
-        dest.Value = value;
 
         _count = count + 1;
     }
@@ -212,7 +210,7 @@ public sealed class SetBuilder<T> where T : notnull
             ref var entry = ref span[0];
             var bitpos0 = 1u << ((entry.Hash >> shift) & 0x1F);
             var leaf = NodeOps.AllocateLeaf<T>(1, NodeFlags.None, OwnerId.None, bitpos0);
-            NodeOps.GetLeafDataSpan<T>(leaf)[0] = new DataSlot<T> { Key = entry.Key, Value = entry.Value };
+            NodeOps.GetLeafDataSpan<T>(leaf)[0] = new DataSlot<T> { Key = entry.Key };
             finalCount++;
             return leaf;
         }
@@ -247,7 +245,7 @@ public sealed class SetBuilder<T> where T : notnull
             {
                 dataMap |= bitpos;
                 Unsafe.Add(ref dataStart, dataCount++) = new DataSlot<T>
-                    { Key = groupSpan[0].Key, Value = groupSpan[0].Value };
+                    { Key = groupSpan[0].Key };
                 finalCount++;
             }
             else
@@ -302,7 +300,7 @@ public sealed class SetBuilder<T> where T : notnull
                 if (comparer.Equals(slots[j].Key, entry.Key))
                 {
                     // If a key is already in the list, we just update its value.
-                    slots[j] = new DataSlot<T> { Key = entry.Key, Value = entry.Value };
+                    slots[j] = new DataSlot<T> { Key = entry.Key };
                     found = true;
                     break;
                 }
@@ -310,7 +308,7 @@ public sealed class SetBuilder<T> where T : notnull
             if (!found)
             {
                 // If it's a new key, add it to the list.
-                slots.Add(new DataSlot<T> { Key = entry.Key, Value = entry.Value });
+                slots.Add(new DataSlot<T> { Key = entry.Key });
                 finalCount++;
             }
         }
@@ -333,7 +331,7 @@ public sealed class SetBuilder<T> where T : notnull
             ref var entry = ref source[0];
             var bitpos0 = 1u << (entry.Hash & 0x1F);
             var leaf = NodeOps.AllocateLeaf<T>(1, NodeFlags.None, OwnerId.None, bitpos0);
-            NodeOps.GetLeafDataSpan<T>(leaf)[0] = new DataSlot<T> { Key = entry.Key, Value = entry.Value };
+            NodeOps.GetLeafDataSpan<T>(leaf)[0] = new DataSlot<T> { Key = entry.Key };
             finalCount++;
             return leaf;
         }
@@ -389,7 +387,7 @@ public sealed class SetBuilder<T> where T : notnull
             {
                 // Single elements instantly terminate sorting and become data payloads
                 ref var entry = ref dest[starts[i]];
-                Unsafe.Add(ref dataStart, dataCount++) = new DataSlot<T> { Key = entry.Key, Value = entry.Value };
+                Unsafe.Add(ref dataStart, dataCount++) = new DataSlot<T> { Key = entry.Key };
                 finalCount++;
             }
             else

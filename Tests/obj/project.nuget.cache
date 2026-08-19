@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "7l/QJjW7Cf0=",
+  "dgSpecHash": "CACCmLMyRvE=",
   "success": true,
-  "projectFilePath": "/home/linus/Programmering/c#/Map/Tests/Tests.csproj",
+  "projectFilePath": "/var/home/linus/Programmering/c#/Set/Tests/Tests.csproj",
   "expectedPackageFiles": [
     "/home/linus/.nuget/packages/coverlet.collector/6.0.4/coverlet.collector.6.0.4.nupkg.sha512",
     "/home/linus/.nuget/packages/microsoft.codecoverage/17.14.1/microsoft.codecoverage.17.14.1.nupkg.sha512",

@@ -394,14 +394,14 @@
           "build/net8.0/xunit.runner.visualstudio.props": {}
         }
       },
-      "Map/1.0.0": {
+      "Set/1.0.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v10.0",
         "compile": {
-          "bin/placeholder/Map.dll": {}
+          "bin/placeholder/Set.dll": {}
         },
         "runtime": {
-          "bin/placeholder/Map.dll": {}
+          "bin/placeholder/Set.dll": {}
         }
       }
     }
@@ -914,16 +914,16 @@
         "xunit.runner.visualstudio.nuspec"
       ]
     },
-    "Map/1.0.0": {
+    "Set/1.0.0": {
       "type": "project",
-      "path": "../Map/Map.csproj",
-      "msbuildProject": "../Map/Map.csproj"
+      "path": "../Set/Set.csproj",
+      "msbuildProject": "../Set/Set.csproj"
     }
   },
   "projectFileDependencyGroups": {
     "net10.0": [
-      "Map >= 1.0.0",
       "Microsoft.NET.Test.Sdk >= 17.14.1",
+      "Set >= 1.0.0",
       "coverlet.collector >= 6.0.4",
       "xunit >= 2.9.3",
       "xunit.runner.visualstudio >= 3.1.4"
@@ -935,11 +935,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/home/linus/Programmering/c#/Map/Tests/Tests.csproj",
+      "projectUniqueName": "/var/home/linus/Programmering/c#/Set/Tests/Tests.csproj",
       "projectName": "Tests",
-      "projectPath": "/home/linus/Programmering/c#/Map/Tests/Tests.csproj",
+      "projectPath": "/var/home/linus/Programmering/c#/Set/Tests/Tests.csproj",
       "packagesPath": "/home/linus/.nuget/packages/",
-      "outputPath": "/home/linus/Programmering/c#/Map/Tests/obj/",
+      "outputPath": "/var/home/linus/Programmering/c#/Set/Tests/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "/home/linus/.nuget/NuGet/NuGet.Config"
@@ -955,8 +955,8 @@
         "net10.0": {
           "targetAlias": "net10.0",
           "projectReferences": {
-            "/home/linus/Programmering/c#/Map/Map/Map.csproj": {
-              "projectPath": "/home/linus/Programmering/c#/Map/Map/Map.csproj"
+            "/var/home/linus/Programmering/c#/Set/Set/Set.csproj": {
+              "projectPath": "/var/home/linus/Programmering/c#/Set/Set/Set.csproj"
             }
           }
         }

@@ -7,12 +7,15 @@
  *
  */
 
+using System.Collections;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace Set;
 
 public sealed partial class Set<T> :
-    IEquatable<Set<T>>
+    IEquatable<Set<T>>,
+    IEnumerable<T>
     where T : notnull
 {
     public static readonly Set<T> Empty = new(null, EqualityComparer<T>.Default);
@@ -49,30 +52,18 @@ public sealed partial class Set<T> :
 
     public bool IsEmpty => Count == 0;
 
-    public MapKeyCollection<T> Keys => new(_root, Count);
-    public MapValueCollection<T> Values => new(_root, Count);
-
     public int Count { get; }
 
-    public TV this[T key] => Get(key);
-
-
-    public bool ContainsKey(T key)
-    {
-        return TryGetValue(key, out _);
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryGetValue(T key, out TV value)
+    public bool Contains(T key)
     {
         if (_root == null)
         {
-            value = default!;
             return false;
         }
 
         var hash = _comparer.GetHashCode(key);
-        return TrieOps.TryGetValue(_root, key, hash, _comparer, out value);
+        return TrieOps.Contains(_root, key, hash, _comparer);
     }
 
 
@@ -81,31 +72,10 @@ public sealed partial class Set<T> :
         return Empty;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryGetKey(T key, out T value)
-    {
-        if (_root == null)
-        {
-            value = default!;
-            return false;
-        }
-
-        var hash = _comparer.GetHashCode(key);
-        return TrieOps.TryGetKey<T>(_root, key, hash, _comparer, out value);
-    }
-
-    public TV Get(T key)
-    {
-        if (TryGetValue(key, out var value)) return value;
-
-        throw new KeyNotFoundException($"The key '{key}' was not present in the map.");
-    }
-    // Todo: add and set should be using the same TrieOps method, which can conditionally
-    // overwrite the value or raise an exception.
-    public Set<T> Set(T key, TV value)
+    public Set<T> Add(T key)
     {
         var hash = _comparer.GetHashCode(key);
-        var newRoot = TrieOps.Insert(_root, key, value, hash, 0, _comparer, out var added);
+        var newRoot = TrieOps.Insert(_root, key, hash, 0, _comparer, out var added);
 
         // If nothing was added NOR CHANGED, we can just return the same persistentmap
         if (ReferenceEquals(_root, newRoot)) return this;
@@ -113,21 +83,21 @@ public sealed partial class Set<T> :
         return new Set<T>(newRoot, _comparer, added ? Count + 1 : Count);
     }
 
-    public Set<T> Add(T key, TV value)
+    public Set<T> AddChecked(T key)
     {
-        if (ContainsKey(key))
+        if (Contains(key))
             throw new ArgumentException($"The key '{key}' is already in the map.");
         var hash = _comparer.GetHashCode(key);
-        var newRoot = TrieOps.Insert(_root, key, value, hash, 0, _comparer, out var added);
+        var newRoot = TrieOps.Insert(_root, key, hash, 0, _comparer, out var added);
 
         return new Set<T>(newRoot, _comparer, added ? Count + 1 : Count);
     }
 
-    public Set<T> AddRange(IEnumerable<KeyValuePair<T>> range)
+    public Set<T> AddRange(IEnumerable<T> range)
     {
         var newMap = Mutate(transient =>
         {
-            foreach (var kvp in range) transient.Set(kvp.Key, kvp.Value);
+            foreach (var k in range) transient.Add(k);
         });
         return newMap;
     }
@@ -163,11 +133,8 @@ public sealed partial class Set<T> :
         if (Count != other.Count) return false;
         if (Count == 0) return true;
 
-        var valueComparer = EqualityComparer<TV>.Default;
-
-        // The struct-based enumerator we built earlier makes this allocation-free
-        foreach (var kvp in this)
-            if (!other.TryGetValue(kvp.Key, out var otherValue) || !valueComparer.Equals(kvp.Value, otherValue))
+        foreach (var item in this)
+            if (!other.Contains(item))
                 return false;
 
         return true;
@@ -183,15 +150,10 @@ public sealed partial class Set<T> :
         if (Count == 0) return 0;
 
         var hash = 0;
-        var valueComparer = EqualityComparer<TV>.Default;
 
-        // XOR is commutative, guaranteeing the same hash regardless of internal tree structure
-        foreach (var kvp in this)
+        foreach (var item in this)
         {
-            var keyHash = _comparer.GetHashCode(kvp.Key);
-            var valHash = kvp.Value == null ? 0 : valueComparer.GetHashCode(kvp.Value);
-
-            hash ^= HashCode.Combine(keyHash, valHash);
+            hash ^= _comparer.GetHashCode(item);
         }
 
         return hash;
@@ -199,72 +161,38 @@ public sealed partial class Set<T> :
 
     public TransientSet<T> ToTransient()
     {
-        return new TransientSet<T>(_root, _comparer);
+        return new TransientSet<T>(_root, _comparer, Count);
     }
 
-    /// <summary>
-    ///     Executes a delegate on the elements of the map
-    /// </summary>
-    /// <returns>True if the iteration completed all elements, or False if aborted early.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Iter(Func<T, TV, bool> action)
+    public bool Iter(Func<T, bool> action)
     {
         return TrieOps.Iter(_root, action);
     }
 
-    /// <summary>
-    ///     Filters the map, retaining only elements that satisfy the specified predicate.
-    /// </summary>
-    /// <param name="action">A function to test each value for a condition.</param>
-    /// <returns>A new <see cref="Map{T, TV}" /> containing the elements that satisfy the condition.</returns>
-    public Set<T> Filter(Func<TV, TV, bool> action)
+    public Set<T> Filter(Func<T, bool> action)
     {
         var builder = new SetBuilder<T>(_comparer);
-        Iter((k, v) =>
+        Iter((k) =>
         {
-            builder.Add(k, v);
+            if (action(k)) builder.Add(k);
             return true;
         });
         return builder.ToImmutable();
     }
 
-    /// <summary>
-    ///     Transforms the elements of the map using the specified function.
-    /// </summary>
-    /// <typeparam name="TNk">The type of the new keys.</typeparam>
-    /// <typeparam name="TNv">The type of the new values.</typeparam>
-    /// <param name="action">A function to transform each key-value pair.</param>
-    /// <param name="comparer">An optional equality comparer for the new keys.</param>
-    /// <returns>A new <see cref="Map{NK, NV}" /> containing the transformed elements.</returns>
-    public Map<TNk, TNv> MapCar<TNk, TNv>(Func<T, TV, (TNk, TNv)> action, IEqualityComparer<TNk>? comparer = null)
-        where TNk : notnull
+    public Set<TNew> Map<TNew>(Func<T, TNew> action)
+        where TNew : notnull
     {
-        var builder = new MapBuilder<TNk, TNv>(comparer);
-        Iter((k, v) =>
+        var builder = new SetBuilder<TNew>();
+        Iter((k) =>
         {
-            var (nk, nv) = action(k, v);
-            builder.Add(nk, nv);
+            var nk = action(k);
+            builder.Add(nk);
             return true;
         });
 
         return builder.ToImmutable();
-    }
-
-    /// <summary>
-    ///     Aggregates the values of the map using the specified function.
-    /// </summary>
-    /// <typeparam name="TState">The type of the accumulator state.</typeparam>
-    /// <param name="seed">The initial accumulator value.</param>
-    /// <param name="action">A function to aggregate the state and each value.</param>
-    /// <returns>The final accumulated state.</returns>
-    public TState FoldValues<TState>(TState seed, Func<TState, TV, TState> action)
-    {
-        Iter((_, v) =>
-        {
-            seed = action(seed, v);
-            return true;
-        });
-        return seed;
     }
 
     /// <summary>
@@ -274,9 +202,9 @@ public sealed partial class Set<T> :
     /// <param name="seed">The initial accumulator value.</param>
     /// <param name="action">A function to aggregate the state and each key.</param>
     /// <returns>The final accumulated state.</returns>
-    public TState FoldKeys<TState>(TState seed, Func<TState, T, TState> action)
+    public TState Fold<TState>(TState seed, Func<TState, T, TState> action)
     {
-        Iter((k, _) =>
+        Iter((k) =>
         {
             seed = action(seed, k);
             return true;
@@ -289,9 +217,9 @@ public sealed partial class Set<T> :
     /// </summary>
     /// <param name="pred">A function to test each element for a condition.</param>
     /// <returns><c>true</c> if the map contains an element that satisfies the condition; otherwise, <c>false</c>.</returns>
-    public bool Exists(Func<T, TV, bool> pred)
+    public bool Exists(Func<T, bool> pred)
     {
-        return Iter((k, v) => { return !pred(k, v); });
+        return !Iter((k) => !pred(k));
     }
 
     /// <summary>
@@ -304,7 +232,7 @@ public sealed partial class Set<T> :
     {
         var key = default(T);
         var found = false;
-        Iter((k, _) =>
+        Iter((k) =>
         {
             if (pred(k))
             {
@@ -327,9 +255,9 @@ public sealed partial class Set<T> :
     /// <param name="action">The action to execute on each key-value pair.</param>
     public void ForEach(Action<T> action)
     {
-        Iter((k, v) =>
+        Iter((k) =>
         {
-            action(k, v);
+            action(k);
             return true;
         });
     }
@@ -355,20 +283,20 @@ public sealed partial class Set<T> :
     ///     An optional thunk called when keys conflict: (key, leftValue, rightValue) => resolvedValue.
     ///     Pass null to default to picking the right value (other overwrites this).
     /// </param>
-    public Set<T> Merge(Set<T> other, Func<T, TV, TV, TV>? conflictResolver = null)
+    public Set<T> Merge(Set<T> other)
     {
         if (other == null) throw new ArgumentNullException(nameof(other));
         if (IsEmpty) return other;
         if (other.IsEmpty) return this;
 
-        var newRoot = TrieOps.Merge(_root, other._root, 0, _comparer, conflictResolver);
+        var newRoot = TrieOps.Merge(_root, other._root, 0, _comparer);
 
         if (ReferenceEquals(_root, newRoot)) return this;
         if (ReferenceEquals(other._root, newRoot)) return other;
 
         // Recalculate size allocation-free via IterFast
         var counter = 0;
-        TrieOps.Iter<T>(newRoot, (_, _) =>
+        TrieOps.Iter<T>(newRoot, (_) =>
         {
             counter++;
             return true;
@@ -377,8 +305,18 @@ public sealed partial class Set<T> :
         return new Set<T>(newRoot, _comparer, counter);
     }
 
-    public MapEnumerator<T> GetEnumerator()
+    public SetEnumerator<T> GetEnumerator()
     {
-        return new MapEnumerator<T>(_root);
+        return new SetEnumerator<T>(_root);
+    }
+
+    IEnumerator<T> IEnumerable<T>.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
     }
 }
