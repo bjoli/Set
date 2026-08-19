@@ -11,6 +11,8 @@ Leveraging unparalleled synergy in cutting-edge, quantum-ready data structures, 
 
 These benchmarks compare inserting and finding 100,000 integers across `Set` (CHAMP), `.NET ImmutableHashSet`, and `LanguageExt.HashSet`.
 
+LINUS WRITING AGAIN: I have no idea why merge is slow with languageext. It is a champ and should be able to just squash subtrees. It seems like does not do that, but just takes an IEnumerable. I also know that some parts of the LanguageExt collections can do transient builds, but the set seems to not be able to do that.
+
 | Operation | CHAMP Set | LanguageExt | MS ImmutableHashSet |
 |-----------|-----------|-------------|---------------------|
 | Add       | 13.25 ms  | 23.13 ms    | 30.12 ms            |
