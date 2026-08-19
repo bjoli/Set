@@ -1,0 +1,11 @@
+/var/home/linus/Programmering/c#/Set/Benchmarks/bin/Release/net10.0/Benchmarks-DefaultJob-1/bin/Release/net10.0/Set.deps.json
+/var/home/linus/Programmering/c#/Set/Benchmarks/bin/Release/net10.0/Benchmarks-DefaultJob-1/bin/Release/net10.0/Set.dll
+/var/home/linus/Programmering/c#/Set/Benchmarks/bin/Release/net10.0/Benchmarks-DefaultJob-1/bin/Release/net10.0/Set.pdb
+/var/home/linus/Programmering/c#/Set/Benchmarks/bin/Release/net10.0/Benchmarks-DefaultJob-1/obj/Set/release/Set.GeneratedMSBuildEditorConfig.editorconfig
+/var/home/linus/Programmering/c#/Set/Benchmarks/bin/Release/net10.0/Benchmarks-DefaultJob-1/obj/Set/release/Set.AssemblyInfoInputs.cache
+/var/home/linus/Programmering/c#/Set/Benchmarks/bin/Release/net10.0/Benchmarks-DefaultJob-1/obj/Set/release/Set.AssemblyInfo.cs
+/var/home/linus/Programmering/c#/Set/Benchmarks/bin/Release/net10.0/Benchmarks-DefaultJob-1/obj/Set/release/Set.csproj.CoreCompileInputs.cache
+/var/home/linus/Programmering/c#/Set/Benchmarks/bin/Release/net10.0/Benchmarks-DefaultJob-1/obj/Set/release/Set.dll
+/var/home/linus/Programmering/c#/Set/Benchmarks/bin/Release/net10.0/Benchmarks-DefaultJob-1/obj/Set/release/refint/Set.dll
+/var/home/linus/Programmering/c#/Set/Benchmarks/bin/Release/net10.0/Benchmarks-DefaultJob-1/obj/Set/release/Set.pdb
+/var/home/linus/Programmering/c#/Set/Benchmarks/bin/Release/net10.0/Benchmarks-DefaultJob-1/obj/Set/release/ref/Set.dll

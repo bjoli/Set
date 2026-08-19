@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>Benchmarks.SetBenchmarks-20260819-084442</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.15.8, Linux Fedora Linux 44 (Container Image)
+AMD Ryzen 9 7900 3.02GHz, 1 CPU, 24 logical and 12 physical cores
+.NET SDK 10.0.107
+  [Host]   : .NET 10.0.7 (10.0.7, 10.0.726.21808), X64 RyuJIT x86-64-v4
+  ShortRun : .NET 10.0.7 (10.0.7, 10.0.726.21808), X64 RyuJIT x86-64-v4
+</code></pre>
+<pre><code>Job=ShortRun  IterationCount=3  LaunchCount=1  
+WarmupCount=3  
+</code></pre>
+
+<table>
+<thead><tr><th>Method    </th><th>Mean </th><th>Error </th><th>StdDev</th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Gen1</th><th>Gen2</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>Add_Champ</td><td>12,127.2 &mu;s</td><td>1,319.54 &mu;s</td><td>72.33 &mu;s</td><td>1.00</td><td>0.01</td><td>5281.2500</td><td>1671.8750</td><td>31.2500</td><td>87875610 B</td><td>1.00</td>
+</tr><tr><td>Add_MS</td><td>28,075.2 &mu;s</td><td>7,012.27 &mu;s</td><td>384.37 &mu;s</td><td>2.32</td><td>0.03</td><td>5906.2500</td><td>937.5000</td><td>62.5000</td><td>98260068 B</td><td>1.12</td>
+</tr><tr><td>Add_LangExt</td><td>22,148.8 &mu;s</td><td>3,019.84 &mu;s</td><td>165.53 &mu;s</td><td>1.83</td><td>0.02</td><td>7437.5000</td><td>1437.5000</td><td>62.5000</td><td>123452462 B</td><td>1.40</td>
+</tr><tr><td>Builder_Champ</td><td>4,315.2 &mu;s</td><td>565.90 &mu;s</td><td>31.02 &mu;s</td><td>0.36</td><td>0.00</td><td>898.4375</td><td>554.6875</td><td>-</td><td>15099432 B</td><td>0.17</td>
+</tr><tr><td>Builder_MS</td><td>8,455.0 &mu;s</td><td>154.51 &mu;s</td><td>8.47 &mu;s</td><td>0.70</td><td>0.00</td><td>328.1250</td><td>312.5000</td><td>-</td><td>5600048 B</td><td>0.06</td>
+</tr><tr><td>Remove_Champ</td><td>12,455.3 &mu;s</td><td>3,947.40 &mu;s</td><td>216.37 &mu;s</td><td>1.03</td><td>0.02</td><td>5218.7500</td><td>812.5000</td><td>-</td><td>87478064 B</td><td>1.00</td>
+</tr><tr><td>Remove_MS</td><td>18,364.2 &mu;s</td><td>4,333.56 &mu;s</td><td>237.54 &mu;s</td><td>1.51</td><td>0.02</td><td>4093.7500</td><td>-</td><td>-</td><td>68941168 B</td><td>0.78</td>
+</tr><tr><td>Remove_LangExt</td><td>18,092.5 &mu;s</td><td>8,256.32 &mu;s</td><td>452.56 &mu;s</td><td>1.49</td><td>0.03</td><td>5750.0000</td><td>750.0000</td><td>31.2500</td><td>96139542 B</td><td>1.09</td>
+</tr><tr><td>Contains_Champ</td><td>774.1 &mu;s</td><td>47.33 &mu;s</td><td>2.59 &mu;s</td><td>0.06</td><td>0.00</td><td>-</td><td>-</td><td>-</td><td>-</td><td>0.00</td>
+</tr><tr><td>Contains_MS</td><td>2,961.0 &mu;s</td><td>846.97 &mu;s</td><td>46.43 &mu;s</td><td>0.24</td><td>0.00</td><td>-</td><td>-</td><td>-</td><td>-</td><td>0.00</td>
+</tr><tr><td>Contains_LangExt</td><td>1,719.6 &mu;s</td><td>257.43 &mu;s</td><td>14.11 &mu;s</td><td>0.14</td><td>0.00</td><td>-</td><td>-</td><td>-</td><td>-</td><td>0.00</td>
+</tr><tr><td>Merge_Champ</td><td>2,167.2 &mu;s</td><td>2,761.69 &mu;s</td><td>151.38 &mu;s</td><td>0.18</td><td>0.01</td><td>123.0469</td><td>121.0938</td><td>-</td><td>2062656 B</td><td>0.02</td>
+</tr><tr><td>Union_MS</td><td>10,203.8 &mu;s</td><td>17,805.31 &mu;s</td><td>975.97 &mu;s</td><td>0.84</td><td>0.07</td><td>156.2500</td><td>140.6250</td><td>-</td><td>2801000 B</td><td>0.03</td>
+</tr><tr><td>Union_LangExt</td><td>19,595.6 &mu;s</td><td>883.30 &mu;s</td><td>48.42 &mu;s</td><td>1.62</td><td>0.01</td><td>6281.2500</td><td>625.0000</td><td>-</td><td>105516224 B</td><td>1.20</td>
+</tr><tr><td>Iterate_Champ</td><td>293.4 &mu;s</td><td>37.56 &mu;s</td><td>2.06 &mu;s</td><td>0.02</td><td>0.00</td><td>-</td><td>-</td><td>-</td><td>-</td><td>0.00</td>
+</tr><tr><td>Iterate_MS</td><td>1,169.2 &mu;s</td><td>17.71 &mu;s</td><td>0.97 &mu;s</td><td>0.10</td><td>0.00</td><td>-</td><td>-</td><td>-</td><td>-</td><td>0.00</td>
+</tr><tr><td>Iterate_LangExt</td><td>1,418.1 &mu;s</td><td>270.58 &mu;s</td><td>14.83 &mu;s</td><td>0.12</td><td>0.00</td><td>128.9063</td><td>-</td><td>-</td><td>2164800 B</td><td>0.02</td>
+</tr></tbody></table>
+</body>
+</html>
