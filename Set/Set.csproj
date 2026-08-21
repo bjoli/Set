@@ -4,6 +4,12 @@
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <!-- The assembly, not the namespace: `Set.Set<T>` is unaffected, and the
+             sources say nothing about either. Assembly names are matched without
+             regard to case, so an assembly called `Set` and the `(std set)`
+             module's own `set.dll` are one name to the loader, and whichever
+             answers first is the one both get. -->
+        <AssemblyName>BjoSet</AssemblyName>
     </PropertyGroup>
 
 </Project>

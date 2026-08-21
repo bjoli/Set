@@ -16,11 +16,27 @@ namespace Set;
 public sealed partial class Set<T> :
     IEquatable<Set<T>>,
     IEnumerable<T>
-    where T : notnull
+   
 {
     public static readonly Set<T> Empty = new(null, EqualityComparer<T>.Default);
     private readonly IEqualityComparer<T> _comparer;
     private readonly NodeBase? _root;
+
+    /// <summary>
+    ///     The comparer's hash of an element.
+    ///
+    ///     The suppression is the whole reason this is a method: with no <c>notnull</c> on
+    ///     <typeparamref name="T" /> the compiler cannot see that an element is non-null, and
+    ///     <see cref="IEqualityComparer{T}.GetHashCode" /> disallows one. The constraint is gone
+    ///     because it is unenforceable at the Bjolang boundary — the generated C# carries no
+    ///     <c>where</c> clauses at all — and every Bjolang type argument is non-null anyway, so
+    ///     requiring it here only produced CS8714 at each generic call site.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int HashOf(T key)
+    {
+        return _comparer.GetHashCode(key!);
+    }
 
     public Set(IEqualityComparer<T> comparer)
     {
@@ -62,7 +78,7 @@ public sealed partial class Set<T> :
             return false;
         }
 
-        var hash = _comparer.GetHashCode(key);
+        var hash = HashOf(key);
         return TrieOps.Contains(_root, key, hash, _comparer);
     }
 
@@ -74,7 +90,7 @@ public sealed partial class Set<T> :
 
     public Set<T> Add(T key)
     {
-        var hash = _comparer.GetHashCode(key);
+        var hash = HashOf(key);
         var newRoot = TrieOps.Insert(_root, key, hash, 0, _comparer, out var added);
 
         // If nothing was added NOR CHANGED, we can just return the same persistentmap
@@ -87,7 +103,7 @@ public sealed partial class Set<T> :
     {
         if (Contains(key))
             throw new ArgumentException($"The key '{key}' is already in the map.");
-        var hash = _comparer.GetHashCode(key);
+        var hash = HashOf(key);
         var newRoot = TrieOps.Insert(_root, key, hash, 0, _comparer, out var added);
 
         return new Set<T>(newRoot, _comparer, added ? Count + 1 : Count);
@@ -116,7 +132,7 @@ public sealed partial class Set<T> :
     {
         if (_root == null) return this;
 
-        var hash = _comparer.GetHashCode(key);
+        var hash = HashOf(key);
         var newRoot = TrieOps.Remove<T>(_root!, key, hash, 0, _comparer, out var removed);
 
         if (!removed) return this;
@@ -153,7 +169,7 @@ public sealed partial class Set<T> :
 
         foreach (var item in this)
         {
-            hash ^= _comparer.GetHashCode(item);
+            hash ^= HashOf(item);
         }
 
         return hash;
@@ -182,7 +198,7 @@ public sealed partial class Set<T> :
     }
 
     public Set<TNew> Map<TNew>(Func<T, TNew> action)
-        where TNew : notnull
+       
     {
         var builder = new SetBuilder<TNew>();
         Iter((k) =>

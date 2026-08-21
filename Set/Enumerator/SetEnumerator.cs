@@ -40,10 +40,10 @@ public struct SetEnumerator<T> : IEnumerator<T>
     public readonly T Current
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _current.Key;
+        get => _current.Key!;
     }
 
-    readonly object IEnumerator.Current => Current;
+    readonly object IEnumerator.Current => Current!;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool MoveNext()

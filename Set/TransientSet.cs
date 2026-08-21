@@ -15,12 +15,22 @@ namespace Set;
 ///     A mutable, transient version of a <see cref="Map{T, TV}" /> that can be efficiently modified
 ///     before being converted back to an immutable map.
 /// </summary>
-public sealed class TransientSet<T> where T : notnull
+public sealed class TransientSet<T>
 {
     private readonly IEqualityComparer<T> _comparer;
     private int _count;
     private ulong _ownerId;
     private NodeBase? _root;
+
+    /// <summary>
+    ///     The comparer's hash of an element. See <see cref="Set{T}" /> for why the suppression
+    ///     is here rather than a <c>notnull</c> constraint.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int HashOf(T key)
+    {
+        return _comparer.GetHashCode(key!);
+    }
 
     internal TransientSet(NodeBase? root, IEqualityComparer<T> comparer, int count = 0)
     {
@@ -29,6 +39,16 @@ public sealed class TransientSet<T> where T : notnull
         _ownerId = OwnerId.Next();
         _count = count;
     }
+
+    /// <summary>
+    ///     How many elements the set holds.
+    /// </summary>
+    public int Count => _count;
+
+    /// <summary>
+    ///     Whether the set holds nothing.
+    /// </summary>
+    public bool IsEmpty => _count == 0;
 
     /// <summary>
     ///     Attempts to get the value associated with the specified key.
@@ -48,7 +68,7 @@ public sealed class TransientSet<T> where T : notnull
             return false;
         }
 
-        var hash = _comparer.GetHashCode(key);
+        var hash = HashOf(key);
         return TrieOps.Contains(_root, key, hash, _comparer);
     }
 

@@ -41,11 +41,21 @@ internal struct BuilderEntry<T>
 ///     It's more efficient to add items to this builder first and then
 ///     convert it to a Map in one go, rather than creating a new Map for each addition.
 /// </summary>
-public sealed class SetBuilder<T> where T : notnull
+public sealed class SetBuilder<T>
 {
     private readonly IEqualityComparer<T> _comparer;
     private int _count;
     private BuilderEntry<T>[] _entries;
+
+    /// <summary>
+    ///     The comparer's hash of an element. See <see cref="Set{T}" /> for why the suppression
+    ///     is here rather than a <c>notnull</c> constraint.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int HashOf(T key)
+    {
+        return _comparer.GetHashCode(key!);
+    }
 
     /// <summary>
     ///     Creates a new MapBuilder.
@@ -82,11 +92,26 @@ public sealed class SetBuilder<T> where T : notnull
         // 2. Bounds-Check Elimination
         ref var dest = ref Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(entries), count);
 
-        dest.Hash = _comparer.GetHashCode(key);
+        dest.Hash = HashOf(key);
         dest.Key = key;
 
         _count = count + 1;
     }
+
+    /// <summary>
+    ///     Adds every element of <paramref name="range" />.
+    /// </summary>
+    public void AddRange(IEnumerable<T> range)
+    {
+        foreach (var key in range) Add(key);
+    }
+
+    /// <summary>
+    ///     How many elements have been appended.
+    ///     Duplicates are still counted: they are compacted by <see cref="ToImmutable" />, so
+    ///     this is the number of appends and not the size of the set being built.
+    /// </summary>
+    public int Count => _count;
 
     /// <summary>
     ///     Converts the builder's contents into an immutable Map.
