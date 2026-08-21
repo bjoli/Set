@@ -2,7 +2,10 @@ bin/
 obj/
 .idea/
 .vscode/
-Benchmarks/BenchmarkDotNet.Artifacts/
+# Benchmark run output is regenerated on every run, but the rendered reports
+# under results/ are kept as a performance record.
+Benchmarks/BenchmarkDotNet.Artifacts/*
+!Benchmarks/BenchmarkDotNet.Artifacts/results/
 *.user
 Set/obj/**/*
 Tests/obj/**/*
