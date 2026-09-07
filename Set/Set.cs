@@ -83,9 +83,14 @@ public sealed partial class Set<T> :
     }
 
 
+    /// Empty, but still comparing elements the way this set does. `Empty` is the
+    /// shared instance and carries the default comparer, so returning it here
+    /// would change what the set means the moment something was put back in.
     public Set<T> Clear()
     {
-        return Empty;
+        return ReferenceEquals(_comparer, EqualityComparer<T>.Default)
+            ? Empty
+            : new Set<T>(_comparer);
     }
 
     public Set<T> Add(T key)
@@ -137,7 +142,9 @@ public sealed partial class Set<T> :
 
         if (!removed) return this;
 
-        if (newRoot == null) return Empty;
+        // `Clear`, not `Empty`: removing the last element must not swap the
+        // comparer out from under the set.
+        if (newRoot == null) return Clear();
 
         return new Set<T>(newRoot, _comparer, removed ? Count - 1 : Count);
     }
