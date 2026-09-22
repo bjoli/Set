@@ -223,13 +223,13 @@ public sealed partial class Set<T> :
     /// </summary>
     /// <typeparam name="TState">The type of the accumulator state.</typeparam>
     /// <param name="seed">The initial accumulator value.</param>
-    /// <param name="action">A function to aggregate the state and each key.</param>
+    /// <param name="action">A function to aggregate each key and the state.</param>
     /// <returns>The final accumulated state.</returns>
-    public TState Fold<TState>(TState seed, Func<TState, T, TState> action)
+    public TState Fold<TState>(TState seed, Func<T, TState, TState> action)
     {
         Iter((k) =>
         {
-            seed = action(seed, k);
+            seed = action(k, seed);
             return true;
         });
         return seed;

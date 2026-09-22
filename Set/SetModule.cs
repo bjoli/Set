@@ -75,7 +75,7 @@ public static class SetModule
     public static Set<T> Filter<T>(Func<T, bool> predicate, Set<T> set) => set.Filter(predicate);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static TState Fold<T, TState>(Func<TState, T, TState> action, TState seed, Set<T> set) => set.Fold(seed, action);
+    public static TState Fold<T, TState>(Func<T, TState, TState> action, TState seed, Set<T> set) => set.Fold(seed, action);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Exists<T>(Func<T, bool> predicate, Set<T> set) => set.Exists(predicate);

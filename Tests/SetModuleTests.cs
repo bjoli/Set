@@ -74,7 +74,7 @@ public class SetModuleTests
         Assert.False(SetModule.Contains(evens, 1));
         
         // Fold
-        var sum = SetModule.Fold((state, x) => state + x, 0, set);
+        var sum = SetModule.Fold((x, state) => state + x, 0, set);
         Assert.Equal(15, sum);
         
         // Exists
