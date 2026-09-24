@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 namespace Set;
@@ -88,11 +89,10 @@ public static class SetModule
     ///     <see cref="FindKey{T}" /> throws when there is none — "no such element" is an answer a
     ///     caller can be handed rather than one it has to catch.
     ///
-    ///     A pair rather than an <c>out</c> parameter, which is the convention every partial
-    ///     answer in this interface follows: an <c>out</c> is a C# idiom and nothing else can
-    ///     call it, while a tuple is a value in any language.
+    ///     The out is <c>[MaybeNullWhen(false)]</c>: it holds nothing usable when the answer is
+    ///     false. Bjolang imports this with <c>(out T)</c> and gets an <c>Option</c>.
     /// </summary>
-    public static (bool found, T key) TryFindKey<T>(Func<T, bool> predicate, Set<T> set)
+    public static bool TryFindKey<T>(Func<T, bool> predicate, Set<T> set, [MaybeNullWhen(false)] out T key)
     {
         var result = default(T);
         var hit = !set.Iter(k =>
@@ -102,7 +102,8 @@ public static class SetModule
             return false;
         });
 
-        return (hit, result!);
+        key = result;
+        return hit;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
