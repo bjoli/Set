@@ -9,13 +9,23 @@ public static class SetModule
 {
     // Standard Operations (Set is the first argument)
 
+    /// <summary>What the set compares its elements with.</summary>
+    public static IEqualityComparer<T> Comparer<T>(Set<T> set) => set.Comparer;
+
+    /// <summary>
+    ///     The empty set comparing elements with <paramref name="comparer" />: the shared one when
+    ///     that is the default.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Set<T> Empty<T>() => Set<T>.Empty;
+    public static Set<T> Empty<T>(IEqualityComparer<T>? comparer = null) =>
+        comparer is null || ReferenceEquals(comparer, EqualityComparer<T>.Default)
+            ? Set<T>.Empty
+            : new Set<T>(comparer);
 
     /// <summary>The set of everything <paramref name="source" /> yields.</summary>
-    public static Set<T> FromEnumerable<T>(IEnumerable<T> source)
+    public static Set<T> FromEnumerable<T>(IEnumerable<T> source, IEqualityComparer<T>? comparer = null)
     {
-        var builder = new SetBuilder<T>();
+        var builder = new SetBuilder<T>(comparer);
         builder.AddRange(source);
         return builder.ToImmutable();
     }
@@ -70,7 +80,8 @@ public static class SetModule
     public static bool Iter<T>(Func<T, bool> action, Set<T> set) => set.Iter(action);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Set<TNew> Map<T, TNew>(Func<T, TNew> action, Set<T> set) => set.Map(action);
+    public static Set<TNew> Map<T, TNew>(Func<T, TNew> action, Set<T> set, IEqualityComparer<TNew>? comparer = null) =>
+        set.Map(action, comparer);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Set<T> Filter<T>(Func<T, bool> predicate, Set<T> set) => set.Filter(predicate);

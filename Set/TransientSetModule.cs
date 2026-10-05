@@ -15,7 +15,8 @@ namespace Set;
 public static class TransientSetModule
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static TransientSet<T> Empty<T>() => Set<T>.Empty.ToTransient();
+    public static TransientSet<T> Empty<T>(IEqualityComparer<T>? comparer = null) =>
+        SetModule.Empty(comparer).ToTransient();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static TransientSet<T> FromPersistent<T>(Set<T> set) => set.ToTransient();
@@ -27,9 +28,9 @@ public static class TransientSetModule
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Set<T> ToPersistent<T>(TransientSet<T> set) => set.ToImmutable();
 
-    public static TransientSet<T> FromEnumerable<T>(IEnumerable<T> source)
+    public static TransientSet<T> FromEnumerable<T>(IEnumerable<T> source, IEqualityComparer<T>? comparer = null)
     {
-        var transient = Set<T>.Empty.ToTransient();
+        var transient = SetModule.Empty(comparer).ToTransient();
         foreach (var key in source) transient.Add(key);
         return transient;
     }

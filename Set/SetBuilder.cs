@@ -119,7 +119,8 @@ public sealed class SetBuilder<T>
     /// </summary>
     public Set<T> ToImmutable()
     {
-        if (_count == 0) return Set<T>.Empty;
+        // Empty, but still comparing elements the way this builder does.
+        if (_count == 0) return SetModule.Empty(_comparer);
 
         var finalCount = 0;
         NodeBase root;

@@ -19,7 +19,7 @@ public static class SetBuilderModule
     /// </summary>
     public static SetBuilder<T> FromSet<T>(Set<T> set)
     {
-        var builder = new SetBuilder<T>(null, set.Count == 0 ? 16 : set.Count);
+        var builder = new SetBuilder<T>(set.Comparer, set.Count == 0 ? 16 : set.Count);
         builder.AddRange(set);
         return builder;
     }

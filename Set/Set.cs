@@ -20,6 +20,9 @@ public sealed partial class Set<T> :
 {
     public static readonly Set<T> Empty = new(null, EqualityComparer<T>.Default);
     private readonly IEqualityComparer<T> _comparer;
+
+    /// <summary>What the set compares its elements with.</summary>
+    public IEqualityComparer<T> Comparer => _comparer;
     private readonly NodeBase? _root;
 
     /// <summary>
@@ -204,10 +207,9 @@ public sealed partial class Set<T> :
         return builder.ToImmutable();
     }
 
-    public Set<TNew> Map<TNew>(Func<T, TNew> action)
-       
+    public Set<TNew> Map<TNew>(Func<T, TNew> action, IEqualityComparer<TNew>? comparer = null)
     {
-        var builder = new SetBuilder<TNew>();
+        var builder = new SetBuilder<TNew>(comparer);
         Iter((k) =>
         {
             var nk = action(k);
