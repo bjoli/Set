@@ -718,33 +718,104 @@ internal static partial class TrieOps
         return node;
     }
 
+    // Elements in a subtree. Nodes store no counts, so this walks every node below `node`.
+    internal static int CountElements<T>(NodeBase node)
+    {
+        var flags = NodeOps.GetFlags(node.Meta);
+        if (flags == NodeFlags.Collision) return Unsafe.As<CollisionNode<T>>(node).Slots.Length;
+
+        var count = BitOperations.PopCount((uint)node.Map);
+        if (flags == NodeFlags.Internal)
+            foreach (var child in NodeOps.GetChildSpan<T>(node))
+                count += CountElements<T>(child);
+        return count;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsSingleLeaf(NodeBase node, NodeFlags flags)
+    {
+        return flags == NodeFlags.None && BitOperations.PopCount((uint)node.Map) == 1;
+    }
+
+    // Index of `key` in a collision node's slots, or -1.
+    private static int IndexIn<T>(CollisionNode<T> col, T key, IEqualityComparer<T> comparer)
+    {
+        var slots = col.Slots;
+        for (var i = 0; i < slots.Length; i++)
+            if (comparer.Equals(slots[i].Key, key))
+                return i;
+        return -1;
+    }
+
+    private static CollisionNode<T> Append<T>(CollisionNode<T> col, DataSlot<T> slot)
+    {
+        var slots = new DataSlot<T>[col.Slots.Length + 1];
+        col.Slots.AsSpan().CopyTo(slots);
+        slots[^1] = slot;
+        return new CollisionNode<T>(slots, col.Hash);
+    }
+
     /// <summary>
-    ///     Pure structural merge of two CHAMP nodes
+    ///     Union of two subtrees rooted at `shift`. Of two equal elements the one from `node1` is kept.
+    ///     `overlap` grows by the number of `node2` elements already in `node1`.
+    ///     Returns `node1` itself when `node2` adds nothing to it.
     /// </summary>
     public static NodeBase? Merge<T>(
         NodeBase? node1,
         NodeBase? node2,
         int shift,
-        IEqualityComparer<T> comparer)
+        IEqualityComparer<T> comparer,
+        ref int overlap)
     {
         if (node1 == null) return node2;
         if (node2 == null) return node1;
 
+        // A shared subtree is its own union, and all of its elements overlap.
+        if (ReferenceEquals(node1, node2))
+        {
+            overlap += CountElements<T>(node1);
+            return node1;
+        }
+
         var flags1 = NodeOps.GetFlags(node1.Meta);
         var flags2 = NodeOps.GetFlags(node2.Meta);
 
-        // Fallback for hash collision nodes: insert the collision node's elements one by one into the
-        // other side, at this node's shift. The left element wins on equality, as in the inline-data case.
         if (flags1 == NodeFlags.Collision)
         {
             var col1 = Unsafe.As<CollisionNode<T>>(node1);
             var h = col1.Hash;
+
+            if (flags2 == NodeFlags.Collision && Unsafe.As<CollisionNode<T>>(node2).Hash == h)
+            {
+                var result = col1;
+                foreach (var slot in Unsafe.As<CollisionNode<T>>(node2).Slots)
+                    if (IndexIn(col1, slot.Key, comparer) >= 0) overlap++;
+                    else result = Append(result, slot);
+                return result;
+            }
+
+            // A one-element leaf, e.g. the micro-leaf made for an inline element below.
+            if (IsSingleLeaf(node2, flags2))
+            {
+                var d2 = NodeOps.GetLeafDataSpan<T>(node2)[0];
+                var h2 = comparer.GetHashCode(d2.Key!);
+                if (h2 != h) return SplitCollision(col1, d2.Key, h2, shift, 0);
+                if (IndexIn(col1, d2.Key, comparer) < 0) return Append(col1, d2);
+                overlap++;
+                return node1;
+            }
+
+            // Insert the collision node's elements one by one into the other side. Insert keeps an
+            // equal element already there, which here is the right one, so that one is removed first.
             NodeBase? current = node2;
             foreach (var slot in col1.Slots)
             {
-                // Insert keeps an equal element already there, which here is the right one.
                 if (ContainsAt(current, slot.Key, h, shift, comparer))
+                {
+                    overlap++;
                     current = Remove(current, slot.Key, h, shift, comparer, out _);
+                }
+
                 current = Insert(current, slot.Key, h, shift, comparer, out _);
             }
 
@@ -755,10 +826,28 @@ internal static partial class TrieOps
         {
             var col2 = Unsafe.As<CollisionNode<T>>(node2);
             var h = col2.Hash;
+
+            if (IsSingleLeaf(node1, flags1))
+            {
+                var d1 = NodeOps.GetLeafDataSpan<T>(node1)[0];
+                var h1 = comparer.GetHashCode(d1.Key!);
+                if (h1 != h) return SplitCollision(col2, d1.Key, h1, shift, 0);
+
+                var i = IndexIn(col2, d1.Key, comparer);
+                if (i < 0) return Append(col2, d1);
+                overlap++;
+                var slots = (DataSlot<T>[])col2.Slots.Clone();
+                slots[i] = d1;
+                return new CollisionNode<T>(slots, h);
+            }
+
+            // Insert leaves an equal left element in place, and returns the same node if it adds nothing.
             var current = node1;
-            // Insert leaves an equal left element in place, so no lookup is needed first.
             foreach (var slot in col2.Slots)
-                current = Insert(current, slot.Key, h, shift, comparer, out _);
+            {
+                current = Insert(current, slot.Key, h, shift, comparer, out var added);
+                if (!added) overlap++;
+            }
 
             return current;
         }
@@ -820,6 +909,8 @@ internal static partial class TrieOps
         var nodeCount = 0;
         ulong finalDataMap = 0;
         ulong finalNodeMap = 0;
+        // Whether the result differs from node1; if not, node1 is returned instead of a copy.
+        var changed = false;
 
         var tempBits = allBits;
         while (tempBits != 0)
@@ -860,6 +951,7 @@ internal static partial class TrieOps
             // Case 2: Populated exclusively in tree 2
             else if (!(hasData1 || hasNode1) && (hasData2 || hasNode2))
             {
+                changed = true;
                 if (hasData2)
                 {
                     pooledData[dataCount++] = d2;
@@ -876,11 +968,13 @@ internal static partial class TrieOps
             {
                 if (comparer.Equals(d1.Key, d2.Key))
                 {
-                    pooledData[dataCount++] = DataSlot<T>.Data(d1.Key!);
+                    overlap++;
+                    pooledData[dataCount++] = d1;
                     finalDataMap |= bitpos;
                 }
                 else
                 {
+                    changed = true;
                     var h2 = comparer.GetHashCode(d2.Key!);
                     var subNode = MergeDataSlots(d1, d2.Key, h2, shift + 5, comparer);
                     pooledNodes[nodeCount++] = subNode;
@@ -890,42 +984,36 @@ internal static partial class TrieOps
             // Case 4: Both elements contain internal sub-nodes
             else if (hasNode1 && hasNode2)
             {
-                var subNode = Merge(n1, n2, shift + 5, comparer);
-                if (subNode != null)
-                {
-                    pooledNodes[nodeCount++] = subNode;
-                    finalNodeMap |= bitpos;
-                }
+                var subNode = Merge(n1, n2, shift + 5, comparer, ref overlap)!;
+                if (!ReferenceEquals(subNode, n1)) changed = true;
+                pooledNodes[nodeCount++] = subNode;
+                finalNodeMap |= bitpos;
             }
             // Case 5: Layer mismatch. Wrap slot into a micro-leaf and run pure Merge.
             else if (hasData1 && hasNode2)
             {
+                changed = true;
                 var h1 = comparer.GetHashCode(d1.Key!);
-                var bitposNext = 1u << ((h1 >> (shift + 5)) & 0x1F);
-                var microLeaf = NodeOps.AllocateLeaf<T>(1, NodeFlags.None, 0, bitposNext);
-                NodeOps.GetLeafDataSpan<T>(microLeaf)[0] = d1;
-
-                var mergedSubNode = Merge(microLeaf, n2, shift + 5, comparer);
-                if (mergedSubNode != null)
-                {
-                    pooledNodes[nodeCount++] = mergedSubNode;
-                    finalNodeMap |= bitpos;
-                }
+                var microLeaf = SingleLeaf(d1, h1, shift + 5, 0);
+                pooledNodes[nodeCount++] = Merge(microLeaf, n2, shift + 5, comparer, ref overlap)!;
+                finalNodeMap |= bitpos;
             }
             else if (hasNode1 && hasData2)
             {
                 var h2 = comparer.GetHashCode(d2.Key!);
-                var bitposNext = 1u << ((h2 >> (shift + 5)) & 0x1F);
-                var microLeaf = NodeOps.AllocateLeaf<T>(1, NodeFlags.None, 0, bitposNext);
-                NodeOps.GetLeafDataSpan<T>(microLeaf)[0] = d2;
-
-                var mergedSubNode = Merge(n1, microLeaf, shift + 5, comparer);
-                if (mergedSubNode != null)
-                {
-                    pooledNodes[nodeCount++] = mergedSubNode;
-                    finalNodeMap |= bitpos;
-                }
+                var microLeaf = SingleLeaf(d2, h2, shift + 5, 0);
+                var subNode = Merge(n1, microLeaf, shift + 5, comparer, ref overlap)!;
+                if (!ReferenceEquals(subNode, n1)) changed = true;
+                pooledNodes[nodeCount++] = subNode;
+                finalNodeMap |= bitpos;
             }
+        }
+
+        if (!changed)
+        {
+            ArrayPool<DataSlot<T>>.Shared.Return(pooledData);
+            ArrayPool<NodeBase>.Shared.Return(pooledNodes);
+            return node1;
         }
 
         NodeBase resultNode;

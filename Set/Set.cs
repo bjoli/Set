@@ -302,13 +302,8 @@ public sealed partial class Set<T> :
     }
 
     /// <summary>
-    ///     Merges another map into this one using a conflict resolution strategy.
+    ///     Union with another set. Of two equal elements, this set's one is kept.
     /// </summary>
-    /// <param name="other">The other map to merge.</param>
-    /// <param name="conflictResolver">
-    ///     An optional thunk called when keys conflict: (key, leftValue, rightValue) => resolvedValue.
-    ///     Pass null to default to picking the right value (other overwrites this).
-    /// </param>
     public Set<T> Merge(Set<T> other)
     {
         if (other == null) throw new ArgumentNullException(nameof(other));
@@ -324,21 +319,15 @@ public sealed partial class Set<T> :
         }
 
         if (IsEmpty) return other;
+        if (ReferenceEquals(_root, other._root)) return this;
 
-        var newRoot = TrieOps.Merge(_root, other._root, 0, _comparer);
+        var overlap = 0;
+        var newRoot = TrieOps.Merge(_root, other._root, 0, _comparer, ref overlap);
 
         if (ReferenceEquals(_root, newRoot)) return this;
         if (ReferenceEquals(other._root, newRoot)) return other;
 
-        // Recalculate size allocation-free via IterFast
-        var counter = 0;
-        TrieOps.Iter<T>(newRoot, (_) =>
-        {
-            counter++;
-            return true;
-        });
-
-        return new Set<T>(newRoot, _comparer, counter);
+        return new Set<T>(newRoot, _comparer, Count + other.Count - overlap);
     }
 
     private bool SameComparer(Set<T> other)

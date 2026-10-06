@@ -26,7 +26,7 @@ public class CollisionTests
 
     // Every element sits where its hash leads, collision nodes hold one full hash and at least
     // two elements, and the tree is no deeper than the enumerator's stack.
-    private static void AssertWellFormed<T>(Set<T> set)
+    internal static void AssertWellFormed<T>(Set<T> set)
     {
         if (set.Root == null)
         {
