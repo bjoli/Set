@@ -125,6 +125,17 @@ public sealed class SetBuilder<T>
         var finalCount = 0;
         NodeBase root;
 
+        // Below the root, same-hash groups are handled by the parent, so the builders never see one.
+        var all = _entries.AsSpan(0, _count);
+        if (AllSameHash(all))
+        {
+            var slots = DistinctSlots(all, _comparer);
+            root = slots.Length == 1
+                ? SingleLeaf(slots[0], all[0].Hash)
+                : new CollisionNode<T>(slots, all[0].Hash, OwnerId.None);
+            return new Set<T>(root, _comparer, slots.Length);
+        }
+
         // Threshold tuned for L2 cache boundaries during 32-way scatter
         // On a ryzen 5 5900x the boundary is about 50000.
         if (_count < 30_000)
@@ -231,18 +242,6 @@ public sealed class SetBuilder<T>
     private static NodeBase BuildNode(Span<BuilderEntry<T>> span, int shift, IEqualityComparer<T> comparer,
         ref int finalCount)
     {
-        if (span.Length == 1)
-        {
-            ref var entry = ref span[0];
-            var bitpos0 = 1u << ((entry.Hash >> shift) & 0x1F);
-            var leaf = NodeOps.AllocateLeaf<T>(1, NodeFlags.None, OwnerId.None, bitpos0);
-            NodeOps.GetLeafDataSpan<T>(leaf)[0] = new DataSlot<T> { Key = entry.Key };
-            finalCount++;
-            return leaf;
-        }
-
-        if (span[0].Hash == span[^1].Hash) return BuildCollisionNode(span, comparer, ref finalCount);
-
         uint dataMap = 0;
         uint nodeMap = 0;
 
@@ -273,6 +272,22 @@ public sealed class SetBuilder<T>
                 Unsafe.Add(ref dataStart, dataCount++) = new DataSlot<T>
                     { Key = groupSpan[0].Key };
                 finalCount++;
+            }
+            else if (AllSameHash(groupSpan))
+            {
+                var slots = DistinctSlots(groupSpan, comparer);
+                finalCount += slots.Length;
+                if (slots.Length == 1)
+                {
+                    dataMap |= bitpos;
+                    Unsafe.Add(ref dataStart, dataCount++) = slots[0];
+                }
+                else
+                {
+                    nodeMap |= bitpos;
+                    Unsafe.Add(ref nodeStart, nodeCount++) =
+                        new CollisionNode<T>(slots, groupSpan[0].Hash, OwnerId.None);
+                }
             }
             else
             {
@@ -306,40 +321,47 @@ public sealed class SetBuilder<T>
         return newNode;
     }
 
-    /// <summary>
-    ///     Handles the case where multiple keys have the same hash code.
-    ///     It creates a special "collision" node that just stores the items in a list.
-    /// </summary>
-    private static NodeBase BuildCollisionNode(Span<BuilderEntry<T>> span, IEqualityComparer<T> comparer,
-        ref int finalCount)
+    private static bool AllSameHash(ReadOnlySpan<BuilderEntry<T>> span)
     {
-        // List is not very efficient, but we also don't build very many collisionNodes. 
+        var hash = span[0].Hash;
+        for (var i = 1; i < span.Length; i++)
+            if (span[i].Hash != hash)
+                return false;
+        return true;
+    }
+
+    /// <summary>
+    ///     The distinct elements of a group sharing one full hash. Of equal elements the last one
+    ///     added is kept.
+    /// </summary>
+    private static DataSlot<T>[] DistinctSlots(ReadOnlySpan<BuilderEntry<T>> span, IEqualityComparer<T> comparer)
+    {
+        // List is not very efficient, but we also don't build very many collisionNodes.
         var slots = new List<DataSlot<T>>(span.Length);
 
         for (var i = 0; i < span.Length; i++)
         {
-            ref var entry = ref span[i];
+            var key = span[i].Key;
             var found = false;
-
-            // We need to check for duplicate keys within the collision list.
             for (var j = 0; j < slots.Count; j++)
-                if (comparer.Equals(slots[j].Key, entry.Key))
+                if (comparer.Equals(slots[j].Key, key))
                 {
-                    // If a key is already in the list, we just update its value.
-                    slots[j] = new DataSlot<T> { Key = entry.Key };
+                    slots[j] = new DataSlot<T> { Key = key };
                     found = true;
                     break;
                 }
 
-            if (!found)
-            {
-                // If it's a new key, add it to the list.
-                slots.Add(new DataSlot<T> { Key = entry.Key });
-                finalCount++;
-            }
+            if (!found) slots.Add(new DataSlot<T> { Key = key });
         }
 
-        return new CollisionNode<T>(slots.ToArray(), OwnerId.None);
+        return slots.ToArray();
+    }
+
+    private static NodeBase SingleLeaf(DataSlot<T> slot, int hash)
+    {
+        var leaf = NodeOps.AllocateLeaf<T>(1, NodeFlags.None, OwnerId.None, 1u << (hash & 0x1F));
+        NodeOps.GetLeafDataSpan<T>(leaf)[0] = slot;
+        return leaf;
     }
 
     // This builds the smaller (below about 30_000 elements) champs
@@ -351,25 +373,13 @@ public sealed class SetBuilder<T>
         IEqualityComparer<T> comparer,
         ref int finalCount)
     {
-        // Global edge case: The entire map only contains exactly 1 item.
-        if (source.Length == 1 && shift == 0)
-        {
-            ref var entry = ref source[0];
-            var bitpos0 = 1u << (entry.Hash & 0x1F);
-            var leaf = NodeOps.AllocateLeaf<T>(1, NodeFlags.None, OwnerId.None, bitpos0);
-            NodeOps.GetLeafDataSpan<T>(leaf)[0] = new DataSlot<T> { Key = entry.Key };
-            finalCount++;
-            return leaf;
-        }
-
-        // If we have shifted past 30, all 32 bits are exhausted. Any remaining items are collisions.
-        if (shift > 30) return BuildCollisionNode(source, comparer, ref finalCount);
+        // The source holds at least two distinct hashes, so they part by shift 30.
 
         // Histogram the current 5-bit chunk
         Span<int> counts = stackalloc int[32];
         for (var i = 0; i < source.Length; i++) counts[(source[i].Hash >> shift) & 0x1F]++;
 
-        // Calculate offsets and pre-compute the CHAMP bitmaps
+        // Calculate offsets. The bitmaps are filled while building, as a bucket of duplicates becomes data.
         Span<int> starts = stackalloc int[32];
         Span<int> positions = stackalloc int[32];
         var offset = 0;
@@ -382,9 +392,6 @@ public sealed class SetBuilder<T>
             starts[i] = offset;
             positions[i] = offset; // Moving cursor for the scatter pass
             offset += c;
-
-            if (c == 1) dataMap |= 1u << i;
-            else if (c > 1) nodeMap |= 1u << i;
         }
 
         // Scatter elements into 'dest' (This cleanly partitions the array)
@@ -409,15 +416,36 @@ public sealed class SetBuilder<T>
             var c = counts[i];
             if (c == 0) continue;
 
+            var bitpos = 1u << i;
+
             if (c == 1)
             {
                 // Single elements instantly terminate sorting and become data payloads
                 ref var entry = ref dest[starts[i]];
                 Unsafe.Add(ref dataStart, dataCount++) = new DataSlot<T> { Key = entry.Key };
+                dataMap |= bitpos;
                 finalCount++;
+            }
+            else if (AllSameHash(dest.Slice(starts[i], c)))
+            {
+                var group = dest.Slice(starts[i], c);
+                var slots = DistinctSlots(group, comparer);
+                finalCount += slots.Length;
+                if (slots.Length == 1)
+                {
+                    Unsafe.Add(ref dataStart, dataCount++) = slots[0];
+                    dataMap |= bitpos;
+                }
+                else
+                {
+                    Unsafe.Add(ref nodeStart, nodeCount++) =
+                        new CollisionNode<T>(slots, group[0].Hash, OwnerId.None);
+                    nodeMap |= bitpos;
+                }
             }
             else
             {
+                nodeMap |= bitpos;
                 // Multiple elements recurse. Note how 'dest' and 'source' slices swap to ping-pong memory
                 var childSource = dest.Slice(starts[i], c);
                 var childDest = source.Slice(starts[i], c);

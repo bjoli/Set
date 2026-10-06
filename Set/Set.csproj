@@ -12,4 +12,8 @@
         <AssemblyName>BjoSet</AssemblyName>
     </PropertyGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="Tests" />
+    </ItemGroup>
+
 </Project>

@@ -32,9 +32,16 @@ internal static partial class TrieOps
         var flags = NodeOps.GetFlags(node.Meta);
         var isMutable = NodeOps.GetOwnerId(node.Meta) == ownerId;
 
+        // An element with another full hash only shares the path so far, so it gets its own branch.
         if (flags == NodeFlags.Collision)
         {
             var colNode = Unsafe.As<CollisionNode<T>>(node);
+            if (colNode.Hash != hash)
+            {
+                added = true;
+                return SplitCollision(colNode, key, hash, shift, ownerId);
+            }
+
             var slots = colNode.Slots;
 
             for (var i = 0; i < slots.Length; i++)
@@ -55,7 +62,7 @@ internal static partial class TrieOps
                 return node;
             }
 
-            return new CollisionNode<T>(appendedSlots, ownerId);
+            return new CollisionNode<T>(appendedSlots, hash, ownerId);
         }
 
         var bit = (hash >> shift) & 0x1F;
@@ -215,24 +222,29 @@ internal static partial class TrieOps
             var colNode = Unsafe.As<CollisionNode<T>>(node);
             var slots = colNode.Slots;
 
-            for (var i = 0; i < slots.Length; i++)
-                if (comparer.Equals(slots[i].Key, key))
-                {
-                    removed = true;
-                    if (slots.Length == 1) return null;
-
-                    var updatedSlots = new DataSlot<T>[slots.Length - 1];
-                    slots.AsSpan(0, i).CopyTo(updatedSlots);
-                    slots.AsSpan(i + 1).CopyTo(updatedSlots.AsSpan(i));
-
-                    if (isMutable)
+            if (colNode.Hash == hash)
+                for (var i = 0; i < slots.Length; i++)
+                    if (comparer.Equals(slots[i].Key, key))
                     {
-                        colNode.Slots = updatedSlots;
-                        return node;
-                    }
+                        removed = true;
+                        if (slots.Length == 1) return null;
 
-                    return new CollisionNode<T>(updatedSlots, ownerId);
-                }
+                        // The survivor becomes a one-slot leaf, which the parent pulls up into its own data.
+                        if (slots.Length == 2)
+                            return SingleLeaf(slots[1 - i], hash, shift, ownerId);
+
+                        var updatedSlots = new DataSlot<T>[slots.Length - 1];
+                        slots.AsSpan(0, i).CopyTo(updatedSlots);
+                        slots.AsSpan(i + 1).CopyTo(updatedSlots.AsSpan(i));
+
+                        if (isMutable)
+                        {
+                            colNode.Slots = updatedSlots;
+                            return node;
+                        }
+
+                        return new CollisionNode<T>(updatedSlots, hash, ownerId);
+                    }
 
             removed = false;
             return node;

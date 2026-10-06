@@ -43,9 +43,16 @@ internal static partial class TrieOps
         // The following handles the dreaded hash collision like this: we iterate through an array of 
         // existing slots because their hashes are identical. If we find the key, we update it; otherwise, 
         // we just tack it onto the end.  This is rare enough to not actually be slow.
+        // An element with another full hash only shares the path so far, so it gets its own branch.
         if (flags == NodeFlags.Collision)
         {
             var colNode = Unsafe.As<CollisionNode<T>>(node);
+            if (colNode.Hash != hash)
+            {
+                added = true;
+                return SplitCollision(colNode, key, hash, shift, 0);
+            }
+
             var oldSlots = colNode.Slots;
             var length = oldSlots.Length;
 
@@ -61,7 +68,7 @@ internal static partial class TrieOps
             oldSlots.AsSpan(0, length).CopyTo(appendedSlots);
             appendedSlots[length] = DataSlot<T>.Data(key);
             added = true;
-            return new CollisionNode<T>(appendedSlots);
+            return new CollisionNode<T>(appendedSlots, hash);
         }
 
         var bit = (hash >> shift) & 0x1F;
@@ -237,7 +244,7 @@ internal static partial class TrieOps
             return new CollisionNode<T>([
                 existingSlot,
                 new DataSlot<T> { Key = newKey }
-            ], ownerId);
+            ], newHash, ownerId);
 
         var existingBit = (existingHash >> shift) & 0x1F;
         var newBit = (newHash >> shift) & 0x1F;
@@ -275,12 +282,50 @@ internal static partial class TrieOps
         return newNodeObj;
     }
 
+    private static NodeBase SingleLeaf<T>(DataSlot<T> slot, int hash, int shift, ulong ownerId)
+    {
+        var leaf = NodeOps.AllocateLeaf<T>(1, NodeFlags.None, ownerId, 1u << ((hash >> shift) & 0x1F));
+        NodeOps.GetLeafDataSpan<T>(leaf)[0] = slot;
+        return leaf;
+    }
+
+    // Replaces a collision node at `shift` with a branch holding it and an element whose full hash
+    // differs from the node's, nesting one-child branches while their hash bits still agree.
+    // The hashes differ, so they part by shift 30 and the collision node ends no deeper than before.
+    internal static NodeBase SplitCollision<T>(CollisionNode<T> colNode, T newKey, int newHash, int shift,
+        ulong ownerId)
+    {
+        var colBit = (colNode.Hash >> shift) & 0x1F;
+        var newBit = (newHash >> shift) & 0x1F;
+
+        if (colBit != newBit)
+        {
+            var map = ((ulong)(1u << colBit) << 32) | (1u << newBit);
+            var branch = NodeOps.AllocateInternal<T>(1, NodeFlags.Internal, ownerId, map);
+            Unsafe.As<InternalNode1<T>>(branch).Data = [new DataSlot<T> { Key = newKey }];
+            NodeOps.GetChildSpan<T>(branch)[0] = colNode;
+            return branch;
+        }
+
+        var subNode = SplitCollision(colNode, newKey, newHash, shift + 5, ownerId);
+        var wrapper = NodeOps.AllocateInternal<T>(1, NodeFlags.Internal, ownerId, (ulong)(1u << colBit) << 32);
+        Unsafe.As<InternalNode1<T>>(wrapper).Data = Array.Empty<DataSlot<T>>();
+        NodeOps.GetChildSpan<T>(wrapper)[0] = subNode;
+        return wrapper;
+    }
+
     // Key lookup! it zips down the tree, decoding the bitmap
     // at each level to figure out exactly which array index holds our data or next node.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool Contains<T>(NodeBase? node, T key, int hash, IEqualityComparer<T> comparer)
     {
-        var shift = 0;
+        return ContainsAt(node, key, hash, 0, comparer);
+    }
+
+    // Lookup in a subtree whose root sits at `shift`.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool ContainsAt<T>(NodeBase? node, T key, int hash, int shift, IEqualityComparer<T> comparer)
+    {
         var current = node;
 
         while (current != null)
@@ -290,7 +335,10 @@ internal static partial class TrieOps
 
             if (flags == (byte)NodeFlags.Collision)
             {
-                var slots = Unsafe.As<CollisionNode<T>>(current).Slots;
+                var colNode = Unsafe.As<CollisionNode<T>>(current);
+                if (colNode.Hash != hash) break;
+
+                var slots = colNode.Slots;
                 for (var i = 0; i < slots.Length; i++)
                     if (comparer.Equals(slots[i].Key, key))
                     {
@@ -380,7 +428,10 @@ internal static partial class TrieOps
 
             if (flags == (byte)NodeFlags.Collision)
             {
-                var slots = Unsafe.As<CollisionNode<T>>(current).Slots;
+                var colNode = Unsafe.As<CollisionNode<T>>(current);
+                if (colNode.Hash != hash) break;
+
+                var slots = colNode.Slots;
                 for (var i = 0; i < slots.Length; i++)
                     if (comparer.Equals(slots[i].Key, key))
                     {
@@ -475,18 +526,22 @@ internal static partial class TrieOps
             var colNode = Unsafe.As<CollisionNode<T>>(node);
             var slots = colNode.Slots;
 
-            for (var i = 0; i < slots.Length; i++)
-                if (comparer.Equals(slots[i].Key, key))
-                {
-                    removed = true;
-                    if (slots.Length == 1) return null; // Should be rare, collisions usually start at 2
+            if (colNode.Hash == hash)
+                for (var i = 0; i < slots.Length; i++)
+                    if (comparer.Equals(slots[i].Key, key))
+                    {
+                        removed = true;
+                        if (slots.Length == 1) return null; // Should be rare, collisions usually start at 2
 
-                    var updatedSlots = new DataSlot<T>[slots.Length - 1];
-                    //Array.Copy(slots, 0, updatedSlots, 0, i);
-                    slots.AsSpan(0, i).CopyTo(updatedSlots);
-                    slots.AsSpan(i + 1).CopyTo(updatedSlots.AsSpan(i));
-                    return new CollisionNode<T>(updatedSlots);
-                }
+                        // The survivor becomes a one-slot leaf, which the parent pulls up into its own data.
+                        if (slots.Length == 2)
+                            return SingleLeaf(slots[1 - i], hash, shift, 0);
+
+                        var updatedSlots = new DataSlot<T>[slots.Length - 1];
+                        slots.AsSpan(0, i).CopyTo(updatedSlots);
+                        slots.AsSpan(i + 1).CopyTo(updatedSlots.AsSpan(i));
+                        return new CollisionNode<T>(updatedSlots, hash);
+                    }
 
             removed = false;
             return node;
@@ -678,18 +733,19 @@ internal static partial class TrieOps
         var flags1 = NodeOps.GetFlags(node1.Meta);
         var flags2 = NodeOps.GetFlags(node2.Meta);
 
-        // Fallback for hash collision nodes
+        // Fallback for hash collision nodes: insert the collision node's elements one by one into the
+        // other side, at this node's shift. The left element wins on equality, as in the inline-data case.
         if (flags1 == NodeFlags.Collision)
         {
             var col1 = Unsafe.As<CollisionNode<T>>(node1);
-            var current = node2;
+            var h = col1.Hash;
+            NodeBase? current = node2;
             foreach (var slot in col1.Slots)
             {
-                var h = comparer.GetHashCode(slot.Key!);
-                if (!Contains(node2, slot.Key, h, comparer))
-                {
-                    current = Insert(current, slot.Key, h, shift, comparer, out _);
-                }
+                // Insert keeps an equal element already there, which here is the right one.
+                if (ContainsAt(current, slot.Key, h, shift, comparer))
+                    current = Remove(current, slot.Key, h, shift, comparer, out _);
+                current = Insert(current, slot.Key, h, shift, comparer, out _);
             }
 
             return current;
@@ -698,15 +754,11 @@ internal static partial class TrieOps
         if (flags2 == NodeFlags.Collision)
         {
             var col2 = Unsafe.As<CollisionNode<T>>(node2);
+            var h = col2.Hash;
             var current = node1;
+            // Insert leaves an equal left element in place, so no lookup is needed first.
             foreach (var slot in col2.Slots)
-            {
-                var h = comparer.GetHashCode(slot.Key!);
-                if (!Contains(node1, slot.Key, h, comparer))
-                {
-                    current = Insert(current, slot.Key, h, shift, comparer, out _);
-                }
-            }
+                current = Insert(current, slot.Key, h, shift, comparer, out _);
 
             return current;
         }

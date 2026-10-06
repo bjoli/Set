@@ -24,6 +24,7 @@ public sealed partial class Set<T> :
     /// <summary>What the set compares its elements with.</summary>
     public IEqualityComparer<T> Comparer => _comparer;
     private readonly NodeBase? _root;
+    internal NodeBase? Root => _root;
 
     /// <summary>
     ///     The comparer's hash of an element.
@@ -311,8 +312,18 @@ public sealed partial class Set<T> :
     public Set<T> Merge(Set<T> other)
     {
         if (other == null) throw new ArgumentNullException(nameof(other));
-        if (IsEmpty) return other;
         if (other.IsEmpty) return this;
+
+        // The other trie is laid out by its own comparer's hashes, so its nodes cannot be reused.
+        // The result compares with this set's comparer, and of equal elements this set's one is kept.
+        if (!SameComparer(other))
+        {
+            var transient = ToTransient();
+            foreach (var item in other) transient.Add(item);
+            return transient.ToImmutable();
+        }
+
+        if (IsEmpty) return other;
 
         var newRoot = TrieOps.Merge(_root, other._root, 0, _comparer);
 
@@ -328,6 +339,11 @@ public sealed partial class Set<T> :
         });
 
         return new Set<T>(newRoot, _comparer, counter);
+    }
+
+    private bool SameComparer(Set<T> other)
+    {
+        return ReferenceEquals(_comparer, other._comparer) || _comparer.Equals(other._comparer);
     }
 
     public SetEnumerator<T> GetEnumerator()
