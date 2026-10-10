@@ -122,37 +122,18 @@ public static class SetModule
 
     // --- Walking -----------------------------------------------------------
 
+    /// <summary>The cursor on the first element of the set, or a done cursor.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SetCursor<T> Cursor<T>(Set<T> set) => new SetCursor<T>(set);
+    public static SetCursor<T> Cursor<T>(Set<T> set) => SetCursor<T>.Start(set.Root);
 
-    /// <summary>
-    ///     Advances the cursor, and answers whether it ran off the end.
-    ///
-    ///     The advance happens *here* rather than in a separate step: a walk asks "is there
-    ///     more?" exactly once per element, so folding the two together is what lets the whole
-    ///     traversal allocate nothing after the cursor itself.
-    /// </summary>
+    /// <summary>True when the cursor is past the last element. Does not move the cursor.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool CursorDone<T>(SetCursor<T> cursor) => !cursor.Enumerator.MoveNext();
+    public static bool CursorDone<T>(SetCursor<T> cursor) => cursor.Done;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static T CursorCurrent<T>(SetCursor<T> cursor) => cursor.Enumerator.Current;
-}
+    public static T CursorCurrent<T>(SetCursor<T> cursor) => cursor.Current;
 
-/// <summary>
-///     A position in a walk of a <see cref="Set{T}" />.
-///
-///     <see cref="SetEnumerator{T}" /> is a struct, which is what keeps a <c>foreach</c>
-///     allocation-free — and exactly what makes it useless to a caller that has to *hold* the
-///     position, since every copy advances independently. This is that struct in a heap cell:
-///     one allocation for the walk, none per element.
-/// </summary>
-public sealed class SetCursor<T>
-{
-    public SetEnumerator<T> Enumerator;
-
-    public SetCursor(Set<T> set)
-    {
-        Enumerator = set.GetEnumerator();
-    }
+    /// <summary>The cursor on the next element. The cursor given does not change.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SetCursor<T> CursorNext<T>(SetCursor<T> cursor) => cursor.Next();
 }
