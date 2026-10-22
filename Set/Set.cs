@@ -13,6 +13,7 @@ using System.Runtime.CompilerServices;
 
 namespace Set;
 
+[NonUserCode]
 public sealed partial class Set<T> :
     IEquatable<Set<T>>,
     IEnumerable<T>
@@ -120,7 +121,7 @@ public sealed partial class Set<T> :
 
     public Set<T> AddRange(IEnumerable<T> range)
     {
-        var newMap = Mutate(transient =>
+        var newMap = Mutate([NonUserCode] (transient) =>
         {
             foreach (var k in range) transient.Add(k);
         });
@@ -129,7 +130,7 @@ public sealed partial class Set<T> :
 
     public Set<T> RemoveRange(IEnumerable<T> range)
     {
-        var newMap = Mutate(transient =>
+        var newMap = Mutate([NonUserCode] (transient) =>
         {
             foreach (var k in range) transient.Remove(k);
         });
@@ -200,7 +201,7 @@ public sealed partial class Set<T> :
     public Set<T> Filter(Func<T, bool> action)
     {
         var builder = new SetBuilder<T>(_comparer);
-        Iter((k) =>
+        Iter([NonUserCode] (k) =>
         {
             if (action(k)) builder.Add(k);
             return true;
@@ -211,7 +212,7 @@ public sealed partial class Set<T> :
     public Set<TNew> Map<TNew>(Func<T, TNew> action, IEqualityComparer<TNew>? comparer = null)
     {
         var builder = new SetBuilder<TNew>(comparer);
-        Iter((k) =>
+        Iter([NonUserCode] (k) =>
         {
             var nk = action(k);
             builder.Add(nk);
@@ -230,7 +231,7 @@ public sealed partial class Set<T> :
     /// <returns>The final accumulated state.</returns>
     public TState Fold<TState>(TState seed, Func<T, TState, TState> action)
     {
-        Iter((k) =>
+        Iter([NonUserCode] (k) =>
         {
             seed = action(k, seed);
             return true;
@@ -245,7 +246,7 @@ public sealed partial class Set<T> :
     /// <returns><c>true</c> if the map contains an element that satisfies the condition; otherwise, <c>false</c>.</returns>
     public bool Exists(Func<T, bool> pred)
     {
-        return !Iter((k) => !pred(k));
+        return !Iter([NonUserCode] (k) => !pred(k));
     }
 
     /// <summary>
@@ -258,7 +259,7 @@ public sealed partial class Set<T> :
     {
         var key = default(T);
         var found = false;
-        Iter((k) =>
+        Iter([NonUserCode] (k) =>
         {
             if (pred(k))
             {
@@ -281,7 +282,7 @@ public sealed partial class Set<T> :
     /// <param name="action">The action to execute on each key-value pair.</param>
     public void ForEach(Action<T> action)
     {
-        Iter((k) =>
+        Iter([NonUserCode] (k) =>
         {
             action(k);
             return true;

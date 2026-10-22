@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 namespace Set;
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 public abstract class NodeBase
 {
     public ulong Meta;

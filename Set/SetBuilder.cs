@@ -18,18 +18,21 @@ namespace Set;
 // to get stack-allocated arrays of a fixed size (32).
 // This is faster than heap allocation for temporary buffers.
 [InlineArray(32)]
+[NonUserCode]
 internal struct DataSlotBuffer<T>
 {
     private DataSlot<T> _element0;
 }
 
 [InlineArray(32)]
+[NonUserCode]
 internal struct NodeBaseBuffer
 {
     private NodeBase _element0;
 }
 
 // A temporary storage for key-value pairs and their hash codes.
+[NonUserCode]
 internal struct BuilderEntry<T>
 {
     public int Hash;
@@ -41,6 +44,7 @@ internal struct BuilderEntry<T>
 ///     It's more efficient to add items to this builder first and then
 ///     convert it to a Map in one go, rather than creating a new Map for each addition.
 /// </summary>
+[NonUserCode]
 public sealed class SetBuilder<T>
 {
     private readonly IEqualityComparer<T> _comparer;

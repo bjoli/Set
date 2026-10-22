@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 
 namespace Set;
 
+[NonUserCode]
 public static class SetModule
 {
     // Standard Operations (Set is the first argument)
@@ -106,7 +107,7 @@ public static class SetModule
     public static bool TryFindKey<T>(Func<T, bool> predicate, Set<T> set, [MaybeNullWhen(false)] out T key)
     {
         var result = default(T);
-        var hit = !set.Iter(k =>
+        var hit = !set.Iter([NonUserCode] (k) =>
         {
             if (!predicate(k)) return true;
             result = k;

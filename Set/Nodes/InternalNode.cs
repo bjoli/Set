@@ -15,198 +15,231 @@ using System.Runtime.InteropServices;
 namespace Set;
 
 [InlineArray(1)]
+[NonUserCode]
 internal struct NodeSlot1
 {
     private NodeBase _element0;
 }
 
 [InlineArray(2)]
+[NonUserCode]
 internal struct NodeSlot2
 {
     private NodeBase _element0;
 }
 
 [InlineArray(3)]
+[NonUserCode]
 internal struct NodeSlot3
 {
     private NodeBase _element0;
 }
 
 [InlineArray(4)]
+[NonUserCode]
 internal struct NodeSlot4
 {
     private NodeBase _element0;
 }
 
 [InlineArray(5)]
+[NonUserCode]
 internal struct NodeSlot5
 {
     private NodeBase _element0;
 }
 
 [InlineArray(6)]
+[NonUserCode]
 internal struct NodeSlot6
 {
     private NodeBase _element0;
 }
 
 [InlineArray(7)]
+[NonUserCode]
 internal struct NodeSlot7
 {
     private NodeBase _element0;
 }
 
 [InlineArray(8)]
+[NonUserCode]
 internal struct NodeSlot8
 {
     private NodeBase _element0;
 }
 
 [InlineArray(9)]
+[NonUserCode]
 internal struct NodeSlot9
 {
     private NodeBase _element0;
 }
 
 [InlineArray(10)]
+[NonUserCode]
 internal struct NodeSlot10
 {
     private NodeBase _element0;
 }
 
 [InlineArray(11)]
+[NonUserCode]
 internal struct NodeSlot11
 {
     private NodeBase _element0;
 }
 
 [InlineArray(12)]
+[NonUserCode]
 internal struct NodeSlot12
 {
     private NodeBase _element0;
 }
 
 [InlineArray(13)]
+[NonUserCode]
 internal struct NodeSlot13
 {
     private NodeBase _element0;
 }
 
 [InlineArray(14)]
+[NonUserCode]
 internal struct NodeSlot14
 {
     private NodeBase _element0;
 }
 
 [InlineArray(15)]
+[NonUserCode]
 internal struct NodeSlot15
 {
     private NodeBase _element0;
 }
 
 [InlineArray(16)]
+[NonUserCode]
 internal struct NodeSlot16
 {
     private NodeBase _element0;
 }
 
 [InlineArray(17)]
+[NonUserCode]
 internal struct NodeSlot17
 {
     private NodeBase _element0;
 }
 
 [InlineArray(18)]
+[NonUserCode]
 internal struct NodeSlot18
 {
     private NodeBase _element0;
 }
 
 [InlineArray(19)]
+[NonUserCode]
 internal struct NodeSlot19
 {
     private NodeBase _element0;
 }
 
 [InlineArray(20)]
+[NonUserCode]
 internal struct NodeSlot20
 {
     private NodeBase _element0;
 }
 
 [InlineArray(21)]
+[NonUserCode]
 internal struct NodeSlot21
 {
     private NodeBase _element0;
 }
 
 [InlineArray(22)]
+[NonUserCode]
 internal struct NodeSlot22
 {
     private NodeBase _element0;
 }
 
 [InlineArray(23)]
+[NonUserCode]
 internal struct NodeSlot23
 {
     private NodeBase _element0;
 }
 
 [InlineArray(24)]
+[NonUserCode]
 internal struct NodeSlot24
 {
     private NodeBase _element0;
 }
 
 [InlineArray(25)]
+[NonUserCode]
 internal struct NodeSlot25
 {
     private NodeBase _element0;
 }
 
 [InlineArray(26)]
+[NonUserCode]
 internal struct NodeSlot26
 {
     private NodeBase _element0;
 }
 
 [InlineArray(27)]
+[NonUserCode]
 internal struct NodeSlot27
 {
     private NodeBase _element0;
 }
 
 [InlineArray(28)]
+[NonUserCode]
 internal struct NodeSlot28
 {
     private NodeBase _element0;
 }
 
 [InlineArray(29)]
+[NonUserCode]
 internal struct NodeSlot29
 {
     private NodeBase _element0;
 }
 
 [InlineArray(30)]
+[NonUserCode]
 internal struct NodeSlot30
 {
     private NodeBase _element0;
 }
 
 [InlineArray(31)]
+[NonUserCode]
 internal struct NodeSlot31
 {
     private NodeBase _element0;
 }
 
 [InlineArray(32)]
+[NonUserCode]
 internal struct NodeSlot32
 {
     private NodeBase _element0;
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode1<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -214,6 +247,7 @@ internal sealed class InternalNode1<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode2<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -221,6 +255,7 @@ internal sealed class InternalNode2<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode3<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -228,6 +263,7 @@ internal sealed class InternalNode3<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode4<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -235,6 +271,7 @@ internal sealed class InternalNode4<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode5<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -242,6 +279,7 @@ internal sealed class InternalNode5<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode6<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -249,6 +287,7 @@ internal sealed class InternalNode6<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode7<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -256,6 +295,7 @@ internal sealed class InternalNode7<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode8<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -263,6 +303,7 @@ internal sealed class InternalNode8<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode9<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -270,6 +311,7 @@ internal sealed class InternalNode9<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode10<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -277,6 +319,7 @@ internal sealed class InternalNode10<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode11<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -284,6 +327,7 @@ internal sealed class InternalNode11<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode12<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -291,6 +335,7 @@ internal sealed class InternalNode12<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode13<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -298,6 +343,7 @@ internal sealed class InternalNode13<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode14<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -305,6 +351,7 @@ internal sealed class InternalNode14<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode15<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -312,6 +359,7 @@ internal sealed class InternalNode15<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode16<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -319,6 +367,7 @@ internal sealed class InternalNode16<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode17<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -326,6 +375,7 @@ internal sealed class InternalNode17<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode18<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -333,6 +383,7 @@ internal sealed class InternalNode18<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode19<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -340,6 +391,7 @@ internal sealed class InternalNode19<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode20<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -347,6 +399,7 @@ internal sealed class InternalNode20<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode21<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -354,6 +407,7 @@ internal sealed class InternalNode21<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode22<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -361,6 +415,7 @@ internal sealed class InternalNode22<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode23<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -368,6 +423,7 @@ internal sealed class InternalNode23<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode24<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -375,6 +431,7 @@ internal sealed class InternalNode24<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode25<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -382,6 +439,7 @@ internal sealed class InternalNode25<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode26<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -389,6 +447,7 @@ internal sealed class InternalNode26<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode27<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -396,6 +455,7 @@ internal sealed class InternalNode27<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode28<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -403,6 +463,7 @@ internal sealed class InternalNode28<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode29<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -410,6 +471,7 @@ internal sealed class InternalNode29<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode30<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -417,6 +479,7 @@ internal sealed class InternalNode30<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode31<T> : NodeBase
 {
     public DataSlot<T>[]? Data;
@@ -424,6 +487,7 @@ internal sealed class InternalNode31<T> : NodeBase
 }
 
 [StructLayout(LayoutKind.Sequential)]
+[NonUserCode]
 internal sealed class InternalNode32<T> : NodeBase
 {
     public DataSlot<T>[]? Data;

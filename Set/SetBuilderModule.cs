@@ -7,6 +7,7 @@ namespace Set;
 ///     The static interface to <see cref="SetBuilder{T}" />: the same operations the type
 ///     carries, as free functions taking the builder first.
 /// </summary>
+[NonUserCode]
 public static class SetBuilderModule
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

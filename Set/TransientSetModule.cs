@@ -12,6 +12,7 @@ namespace Set;
 ///     own, so an edit costs no copy — and <see cref="ToPersistent{T}" /> hands the result back
 ///     as an immutable set in O(1).
 /// </summary>
+[NonUserCode]
 public static class TransientSetModule
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

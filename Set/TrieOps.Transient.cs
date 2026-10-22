@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 
 namespace Set;
 
+[NonUserCode]
 internal static partial class TrieOps
 {
     // Well, if you thought the immutable Insert, this is actually the same, but it checks if the instance of TransientMap that 

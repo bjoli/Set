@@ -33,6 +33,7 @@ namespace Set;
 ///     The elements come in the order <see cref="SetEnumerator{T}" /> gives: the elements of
 ///     a node, then its children in order.
 /// </summary>
+[NonUserCode]
 public readonly struct SetCursor<T>
 {
     // The depth of the node is in the low bits of the path, and the child index at each
@@ -221,6 +222,7 @@ public readonly struct SetCursor<T>
     }
 
     [InlineArray(MaxDepth + 1)]
+    [NonUserCode]
     private struct PathNodes
     {
         private NodeBase _element0;
@@ -232,6 +234,7 @@ public readonly struct SetCursor<T>
 ///     object is then a byte offset from <see cref="Data" />, the same for a node and for an
 ///     array.
 /// </summary>
+[NonUserCode]
 internal sealed class RawData
 {
     public byte Data;

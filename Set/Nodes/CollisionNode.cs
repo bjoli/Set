@@ -2,6 +2,7 @@ namespace Set;
 
 // Holds elements that all share one full hash, stored in Hash so inserts can tell a real
 // collision from an element that only shares the path so far.
+[NonUserCode]
 internal sealed class CollisionNode<T> : NodeBase
 {
     public DataSlot<T>[] Slots;

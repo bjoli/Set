@@ -15,6 +15,7 @@ namespace Set;
 ///     A mutable, transient version of a <see cref="Map{T, TV}" /> that can be efficiently modified
 ///     before being converted back to an immutable map.
 /// </summary>
+[NonUserCode]
 public sealed class TransientSet<T>
 {
     private readonly IEqualityComparer<T> _comparer;
