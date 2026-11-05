@@ -69,6 +69,9 @@ public static class SetModule
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Set<T> Merge<T>(Set<T> set1, Set<T> set2) => set1.Merge(set2);
 
+    // (std parallel)'s chunks: about k sets that hold each element once, sharing the nodes
+    public static Set<T>[] Split<T>(Set<T> set, int k) => set.Split(k);
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static TransientSet<T> ToTransient<T>(Set<T> set) => set.ToTransient();
 

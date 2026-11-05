@@ -47,33 +47,46 @@ public sealed partial class Set<T> :
     {
         _root = null;
         _comparer = comparer;
-        Count = 0;
+        _count = 0;
     }
 
     public Set()
     {
         _root = null;
         _comparer = EqualityComparer<T>.Default;
-        Count = 0;
+        _count = 0;
     }
 
     private Set(NodeBase? root, IEqualityComparer<T> comparer)
     {
         _root = root;
         _comparer = comparer;
-        Count = 0;
+        _count = 0;
     }
 
+    // A count of -1: not counted yet, see Count.
     internal Set(NodeBase? root, IEqualityComparer<T> comparer, int count)
     {
         _root = root;
         _comparer = comparer;
-        Count = count;
+        _count = count;
     }
 
     public bool IsEmpty => Count == 0;
 
-    public int Count { get; }
+    // -1 until counted: a part made by Split is counted when its count is first asked for,
+    // which is in the part's own fiber rather than in the split. Written at most once, with
+    // the same value by every thread that writes it, so the race is benign.
+    private int _count;
+
+    public int Count => _count >= 0 ? _count : CountNow();
+
+    private int CountNow()
+    {
+        var n = _root == null ? 0 : TrieSplit<T>.CountTree(_root);
+        _count = n;
+        return n;
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Contains(T key)
@@ -87,6 +100,23 @@ public sealed partial class Set<T> :
         return TrieOps.Contains(_root, key, hash, _comparer);
     }
 
+
+    /// <summary>
+    ///     About <paramref name="k" /> sets that together hold each element of this one once, under
+    ///     the same comparer. They share this set's nodes. Fewer when there are fewer elements,
+    ///     and at least one: this set, when it is empty or <paramref name="k" /> is 1 or less.
+    ///     The parts are balanced by the trie's shape, so their sizes are close when the hashes
+    ///     are spread, and the split costs about k nodes, not a walk. A part's count is taken
+    ///     the first time it is asked for.
+    /// </summary>
+    public Set<T>[] Split(int k)
+    {
+        var pieces = TrieSplit<T>.Split(_root, Count, k);
+        if (pieces.Length == 1) return [this];
+        var parts = new Set<T>[pieces.Length];
+        for (var i = 0; i < pieces.Length; i++) parts[i] = new Set<T>(pieces[i], _comparer, -1);
+        return parts;
+    }
 
     /// Empty, but still comparing elements the way this set does. `Empty` is the
     /// shared instance and carries the default comparer, so returning it here
